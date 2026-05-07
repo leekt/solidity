@@ -15,6 +15,9 @@ Language Features:
 * Name Resolver: Warn about identifiers selected for future promotion to Solidity or Yul keywords (`at`, `error`, `layout`, `leave`, `super`, `transient`, `this`).
 * Yul Analyzer: Warn about identifiers selected for future promotion to Yul keywords and reserved identifiers (`basefee`, `blobbasefee`, `blobhash`, `clz`, `leave`, `memoryguard`, `mcopy`, `prevrandao`, `tload`, `tstore`).
 
+Important Bugfixes:
+* Yul Optimizer: Fix `UnusedStoreEliminator` incorrectly removing `returndatacopy` operations when the length comes from a stale `returndatasize()` call that was invalidated by subsequent call opcodes.
+
 Compiler Features:
 * Commandline Interface: Disallow selecting the deprecated assembly input mode that was only accessible via `--assemble` instead of treating it as equivalent to `--strict-assembly`.
 * Commandline Interface: Introduce `--experimental` flag required for enabling the experimental mode.
@@ -27,6 +30,7 @@ Compiler Features:
 * Standard JSON Interface: Introduce `settings.experimental` setting required for enabling the experimental mode.
 * Standard JSON Interface: Replace the experimental top-level `ethdebug` output with `ethdebug.resources` and `ethdebug.compilation`. Decouple ethdebug outputs from binary compilation so that requesting the `ethdebug/format/info/resources` schema artifacts does not trigger bytecode generation.
 * Yul Optimizer: Improve performance of control flow side effects collector and function references resolver.
+* Yul Optimizer: Remove optimization that eliminated `returndatacopy` operations.
 
 Bugfixes:
 * Yul: Fix incorrect serialization of Yul object names containing double quotes and escape sequences, producing output that could not be parsed as valid Yul.
