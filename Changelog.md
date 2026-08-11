@@ -15,6 +15,7 @@ Compiler Features:
 Bugfixes:
 * Code Generator: Fix ICE on parenthesized custom error construction in require statement.
 * Commandline Interface: Report proper error instead of ICE on non-hex mixed-case address value given via `--libraries`.
+* Type Checker: Fix ICE and emit proper error when accessing FixedPointType variables in inline assembly.
 
 Build System:
 * Update minimum version requirement of Boost to 1.83.0 for Windows build. This matches the minimum version for other systems.
