@@ -140,8 +140,7 @@ std::set<std::string, std::less<>> createReservedIdentifiers(langutil::EVMVersio
 	};
 
 	// The EIP-8141 names must not be reserved on VMs without the frame transaction
-	// opcodes, or existing code would stop compiling. This matters most for
-	// `approve`, which collides with the ubiquitous ERC-20 function name.
+	// opcodes, or existing code would stop compiling.
 	auto frameTransactionException = [&](evmasm::Instruction _instr) -> bool
 	{
 		if (_evmVersion.hasFrameTransaction())
