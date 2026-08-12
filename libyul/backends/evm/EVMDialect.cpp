@@ -139,6 +139,27 @@ std::set<std::string, std::less<>> createReservedIdentifiers(langutil::EVMVersio
 		return _instr == evmasm::Instruction::SLOTNUM && !_evmVersion.hasSlotNum();
 	};
 
+	// The EIP-8141 names must not be reserved on VMs without the frame transaction
+	// opcodes, or existing code would stop compiling. This matters most for
+	// `approve`, which collides with the ubiquitous ERC-20 function name.
+	auto frameTransactionException = [&](evmasm::Instruction _instr) -> bool
+	{
+		if (_evmVersion.hasFrameTransaction())
+			return false;
+		switch (_instr)
+		{
+		case evmasm::Instruction::APPROVE:
+		case evmasm::Instruction::TXPARAM:
+		case evmasm::Instruction::FRAMEDATALOAD:
+		case evmasm::Instruction::FRAMEDATACOPY:
+		case evmasm::Instruction::FRAMEPARAM:
+		case evmasm::Instruction::SIGPARAM:
+			return true;
+		default:
+			return false;
+		}
+	};
+
 	std::set<std::string, std::less<>> reserved;
 	for (auto const& instr: evmasm::c_instructions)
 	{
@@ -151,7 +172,8 @@ std::set<std::string, std::less<>> createReservedIdentifiers(langutil::EVMVersio
 			!mcopyException(instr.second) &&
 			!transientStorageException(instr.second) &&
 			!clzException(instr.second) &&
-			!slotNumException(instr.second)
+			!slotNumException(instr.second) &&
+			!frameTransactionException(instr.second)
 		)
 			reserved.emplace(name);
 	}
