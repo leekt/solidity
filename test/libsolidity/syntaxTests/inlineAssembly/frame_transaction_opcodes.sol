@@ -1,5 +1,5 @@
 contract C {
-    // Not view: approve() updates the transaction-scoped approval context.
+    // Not view: approvetx() updates the transaction-scoped approval context.
     function verify(uint256 scope) public {
         assembly {
             // Read the canonical signature hash, the resolved signer of
@@ -11,7 +11,7 @@ contract C {
             let target := frameparam(0, 0x00)
             let word := framedataload(1, 0)
             framedatacopy(0, 0, 32, 1)
-            if eq(signer, target) { approve(0, 0, scope) }
+            if eq(signer, target) { approvetx(0, 0, scope) }
             revert(0, 0)
         }
     }

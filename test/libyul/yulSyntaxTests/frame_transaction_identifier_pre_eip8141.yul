@@ -1,5 +1,5 @@
 {
-    function approve() {}
+    function approvetx() {}
     function txparam() {}
 }
 // ====
