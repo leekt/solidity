@@ -211,6 +211,9 @@ def examine_id_coverage(top_dir, source_id_to_file_names, new_ids_only=False):
         "5026", # ContractLevelChecker: too difficult to exceed transient storage max size due to only value types supported.
         "1049", # AsmAnalysis: SLOTNUM only available for Amsterdam-compatible VMs. Only reachable once Amsterdam
                 # becomes the default EVM version.
+        "3141", # AsmAnalysis: EIP-8141 frame transaction instructions only available for EIP-8141-compatible VMs.
+                # Only reachable once the fork introducing them becomes the default EVM version; before then the
+                # builtins are not registered at all, so the parser reports "not found" first.
     }
     assert len(test_ids & white_ids) == 0, "The sets are not supposed to intersect"
     test_ids |= white_ids

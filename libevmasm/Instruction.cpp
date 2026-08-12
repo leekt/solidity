@@ -170,6 +170,12 @@ std::map<std::string, Instruction, std::less<>> const solidity::evmasm::c_instru
 	{ "LOG2", Instruction::LOG2 },
 	{ "LOG3", Instruction::LOG3 },
 	{ "LOG4", Instruction::LOG4 },
+	{ "APPROVE", Instruction::APPROVE },
+	{ "TXPARAM", Instruction::TXPARAM },
+	{ "FRAMEDATALOAD", Instruction::FRAMEDATALOAD },
+	{ "FRAMEDATACOPY", Instruction::FRAMEDATACOPY },
+	{ "FRAMEPARAM", Instruction::FRAMEPARAM },
+	{ "SIGPARAM", Instruction::SIGPARAM },
 	{ "CREATE", Instruction::CREATE },
 	{ "CALL", Instruction::CALL },
 	{ "CALLCODE", Instruction::CALLCODE },
@@ -326,6 +332,19 @@ static std::map<Instruction, InstructionInfo> const c_instructionInfo =
 	{Instruction::LOG2,           {"LOG2",            0,  4,   0,  true,       Tier::Special}},
 	{Instruction::LOG3,           {"LOG3",            0,  5,   0,  true,       Tier::Special}},
 	{Instruction::LOG4,           {"LOG4",            0,  6,   0,  true,       Tier::Special}},
+	// EIP-8141 frame transaction instructions. APPROVE charges only memory
+	// expansion for its return-data region, exactly like RETURN, hence Tier::Zero.
+	{Instruction::APPROVE,        {"APPROVE",         0,  3,   0,  true,       Tier::Zero}},
+	{Instruction::TXPARAM,        {"TXPARAM",         0,  1,   1,  false,      Tier::Base}},
+	{Instruction::FRAMEDATALOAD,  {"FRAMEDATALOAD",   0,  2,   1,  false,      Tier::VeryLow}},
+	{Instruction::FRAMEDATACOPY,  {"FRAMEDATACOPY",   0,  4,   0,  true,       Tier::VeryLow}},
+	{Instruction::FRAMEPARAM,     {"FRAMEPARAM",      0,  2,   1,  false,      Tier::Base}},
+	// SIGPARAM has an operand-dependent stack effect: the metadata forms
+	// (param 0x00-0x03) take 2 and return 1, while the copy form (param 0x04)
+	// takes 5 and returns none. InstructionInfo cannot express that, so only the
+	// metadata form is described here and exposed as a builtin; the copy form
+	// remains reachable through verbatim_5i_0o(hex"b4", ...).
+	{Instruction::SIGPARAM,       {"SIGPARAM",        0,  2,   1,  false,      Tier::Base}},
 	{Instruction::CREATE,         {"CREATE",          0,  3,   1,  true,       Tier::Special}},
 	{Instruction::CALL,           {"CALL",            0,  7,   1,  true,       Tier::Special}},
 	{Instruction::CALLCODE,       {"CALLCODE",        0,  7,   1,  true,       Tier::Special}},

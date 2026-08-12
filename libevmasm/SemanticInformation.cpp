@@ -79,6 +79,8 @@ std::vector<SemanticInformation::Operation> SemanticInformation::readWriteOperat
 	}
 	case Instruction::REVERT:
 	case Instruction::RETURN:
+	// APPROVE returns a memory region as the frame's return data, like RETURN.
+	case Instruction::APPROVE:
 	case Instruction::KECCAK256:
 	case Instruction::LOG0:
 	case Instruction::LOG1:
@@ -111,6 +113,8 @@ std::vector<SemanticInformation::Operation> SemanticInformation::readWriteOperat
 	case Instruction::CODECOPY:
 	case Instruction::CALLDATACOPY:
 	case Instruction::RETURNDATACOPY:
+	// FRAMEDATACOPY copies a frame's input data to memory, like CALLDATACOPY.
+	case Instruction::FRAMEDATACOPY:
 	{
 		assertThrow(memory(_instruction) == Effect::Write, OptimizerException, "");
 		assertThrow(storage(_instruction) == Effect::None, OptimizerException, "");
@@ -291,6 +295,8 @@ bool SemanticInformation::altersControlFlow(AssemblyItem const& _item)
 	case Instruction::STOP:
 	case Instruction::INVALID:
 	case Instruction::REVERT:
+	// APPROVE exits the current call frame successfully, like RETURN.
+	case Instruction::APPROVE:
 		return true;
 	default:
 		return false;
@@ -313,6 +319,8 @@ bool SemanticInformation::terminatesControlFlow(Instruction _instruction)
 	case Instruction::STOP:
 	case Instruction::INVALID:
 	case Instruction::REVERT:
+	// APPROVE terminates the frame successfully, so code after it is unreachable.
+	case Instruction::APPROVE:
 		return true;
 	default:
 		return false;
@@ -434,6 +442,7 @@ SemanticInformation::Effect SemanticInformation::memory(Instruction _instruction
 	case Instruction::CALLCODE:
 	case Instruction::DELEGATECALL:
 	case Instruction::STATICCALL:
+	case Instruction::FRAMEDATACOPY:
 		return SemanticInformation::Write;
 
 	case Instruction::CREATE:
@@ -443,6 +452,7 @@ SemanticInformation::Effect SemanticInformation::memory(Instruction _instruction
 	case Instruction::MSIZE:
 	case Instruction::RETURN:
 	case Instruction::REVERT:
+	case Instruction::APPROVE:
 	case Instruction::LOG0:
 	case Instruction::LOG1:
 	case Instruction::LOG2:
@@ -577,6 +587,15 @@ bool SemanticInformation::invalidInPureFunctions(Instruction _instruction)
 	case Instruction::STATICCALL:
 	case Instruction::SLOAD:
 	case Instruction::TLOAD:
+	// The EIP-8141 introspection instructions read transaction-scoped context,
+	// like CALLER or CALLVALUE, so they are not pure but are fine in a view
+	// function. APPROVE is handled by invalidInViewFunctions below, since it
+	// mutates state.
+	case Instruction::TXPARAM:
+	case Instruction::FRAMEDATALOAD:
+	case Instruction::FRAMEDATACOPY:
+	case Instruction::FRAMEPARAM:
+	case Instruction::SIGPARAM:
 		return true;
 	default:
 		break;
@@ -603,6 +622,9 @@ bool SemanticInformation::invalidInViewFunctions(Instruction _instruction)
 	case Instruction::DELEGATECALL:
 	case Instruction::CREATE2:
 	case Instruction::SELFDESTRUCT:
+	// APPROVE updates the transaction-scoped approval context: it increments the
+	// sender's nonce, sets the payer and collects the maximum transaction cost.
+	case Instruction::APPROVE:
 		return true;
 	default:
 		break;

@@ -62,6 +62,13 @@ bool EVMVersion::hasOpcode(Instruction _opcode) const
 	case Instruction::TSTORE:
 	case Instruction::TLOAD:
 		return supportsTransientStorage();
+	case Instruction::APPROVE:
+	case Instruction::TXPARAM:
+	case Instruction::FRAMEDATALOAD:
+	case Instruction::FRAMEDATACOPY:
+	case Instruction::FRAMEPARAM:
+	case Instruction::SIGPARAM:
+		return hasFrameTransaction();
 	default:
 		return true;
 	}

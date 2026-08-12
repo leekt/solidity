@@ -144,6 +144,11 @@ public:
 	bool hasMcopy() const { return *this >= cancun(); }
 	bool supportsTransientStorage() const { return *this >= cancun(); }
 	bool hasSlotNum() const { return *this >= amsterdam(); }
+	/// Has the EIP-8141 frame transaction instructions: APPROVE, TXPARAM,
+	/// FRAMEDATALOAD, FRAMEDATACOPY, FRAMEPARAM and SIGPARAM. EIP-8141 is still a
+	/// draft and is not assigned to a named fork, so these are gated behind the
+	/// experimental @future version.
+	bool hasFrameTransaction() const { return *this >= future(); }
 	constexpr size_t reachableStackDepth() const { return 16; }
 
 	bool hasOpcode(evmasm::Instruction _opcode) const;
