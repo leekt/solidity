@@ -528,6 +528,23 @@ u256 EVMInstructionInterpreter::evalBuiltin(
 	std::vector<u256> const& _evaluatedArguments
 )
 {
+	// sigdatacopy carries SIGPARAM as its instruction for version gating, but
+	// has the copy form's arity, so it must be handled before the generic
+	// instruction dispatch. Signature bytes are not modeled; zero-fill the
+	// destination like FRAMEDATACOPY.
+	if (_fun.name == "sigdatacopy")
+	{
+		if (accessMemory(_evaluatedArguments.at(1), _evaluatedArguments.at(3)))
+			copyZeroExtended(
+				m_state.memory,
+				{},
+				size_t(_evaluatedArguments.at(1)),
+				size_t(_evaluatedArguments.at(2)),
+				size_t(_evaluatedArguments.at(3))
+			);
+		return 0;
+	}
+
 	if (_fun.instruction)
 		return eval(*_fun.instruction, _evaluatedArguments);
 

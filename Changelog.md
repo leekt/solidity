@@ -5,6 +5,7 @@ Language Features:
 * EVM: Support `block.slotnum` to access the beacon chain slot number of the current block, available since the Amsterdam EVM version ([EIP-7843](https://eips.ethereum.org/EIPS/eip-7843)).
 * Yul: Introduce builtin `slotnum()` for the `SLOTNUM` opcode, available since the Amsterdam EVM version ([EIP-7843](https://eips.ethereum.org/EIPS/eip-7843)).
 * Yul: Introduce builtins `approvetx()`, `txparam()`, `framedataload()`, `framedatacopy()`, `frameparam()` and `sigparam()` for the frame transaction opcodes, available on the experimental `@future` EVM version ([EIP-8141](https://eips.ethereum.org/EIPS/eip-8141)). The EIP's `APPROVE` is spelled `approvetx` to keep the ERC-20 name free.
+* Yul: Introduce builtin `sigdatacopy(signatureIndex, memOffset, dataOffset, length)` for the copy form of `SIGPARAM` (`param == 0x04`), whose stack arity differs from the metadata forms exposed by `sigparam()`. This makes copying `ARBITRARY` signature bytes possible from inline assembly, where `verbatim` is unavailable.
 
 Compiler Features:
 * Commandline Interface: Remove support for the experimental Language Server Protocol (LSP) mode.

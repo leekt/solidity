@@ -190,6 +190,40 @@ BuiltinFunctionForEVM datacopyBuiltin()
 	);
 }
 
+BuiltinFunctionForEVM sigdatacopyBuiltin()
+{
+	// SIGPARAM's copy form (param == 0x04) takes five stack items while the
+	// metadata forms behind the sigparam builtin take two, and InstructionInfo
+	// can only describe one arity per opcode. This builtin hardcodes the param
+	// and emits PUSH1 0x04 SWAP1 SIGPARAM as a verbatim sequence so that the
+	// assembly's stack accounting sees the real net effect of 4 in / 0 out.
+	BuiltinFunctionForEVM f = createFunction(
+		"sigdatacopy",
+		4,
+		0,
+		EVMBuiltins::sideEffectsOfInstruction(evmasm::Instruction::FRAMEDATACOPY),
+		ControlFlowSideEffects::fromInstruction(evmasm::Instruction::FRAMEDATACOPY),
+		{},
+		[](
+			FunctionCall const&,
+			AbstractAssembly& _assembly,
+			BuiltinContext&
+		) {
+			// Stack: signatureIndex, memOffset, dataOffset, length.
+			// SIGPARAM wants the param below the signature index.
+			_assembly.appendVerbatim(
+				bytes{0x60, 0x04, 0x90, static_cast<uint8_t>(evmasm::Instruction::SIGPARAM)},
+				4,
+				0
+			);
+		}
+	);
+	// The instruction drives EVM version gating and the view/pure rules;
+	// code generation does not use it.
+	f.instruction = evmasm::Instruction::SIGPARAM;
+	return f;
+}
+
 BuiltinFunctionForEVM setimmutableBuiltin()
 {
 	return createFunction(
@@ -258,6 +292,10 @@ EVMBuiltins::EVMBuiltins()
 		else
 			m_scopesAndFunctions.emplace_back(instruction, instructionBuiltin(opcode, langutil::EVMVersion::current()));
 	}
+
+	// The copy form of SIGPARAM has its own arity, so it is a separate builtin
+	// on top of the plain instruction builtin created by the loop above.
+	m_scopesAndFunctions.emplace_back(instruction, sigdatacopyBuiltin());
 
 	m_scopesAndFunctions.emplace_back(objectAccess, linkersymbolBuiltin());
 	m_scopesAndFunctions.emplace_back(objectAccess, memoryguardBuiltin());
