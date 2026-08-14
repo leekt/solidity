@@ -176,6 +176,10 @@ std::set<std::string, std::less<>> createReservedIdentifiers(langutil::EVMVersio
 		)
 			reserved.emplace(name);
 	}
+	// Like the frame transaction instruction names, sigdatacopy stays usable
+	// as an ordinary identifier before the fork that introduces SIGPARAM.
+	if (_evmVersion.hasFrameTransaction())
+		reserved.emplace("sigdatacopy");
 	reserved += std::vector<std::string>{
 		"linkersymbol",
 		"datasize",

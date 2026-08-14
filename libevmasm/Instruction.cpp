@@ -346,8 +346,8 @@ static std::map<Instruction, InstructionInfo> const c_instructionInfo =
 	// SIGPARAM has an operand-dependent stack effect: the metadata forms
 	// (param 0x00-0x03) take 2 and return 1, while the copy form (param 0x04)
 	// takes 5 and returns none. InstructionInfo cannot express that, so only the
-	// metadata form is described here and exposed as a builtin; the copy form
-	// remains reachable through verbatim_5i_0o(hex"b4", ...).
+	// metadata form is described here; the copy form is exposed as the separate
+	// Yul builtin sigdatacopy, which hardcodes the param.
 	{Instruction::SIGPARAM,       {"SIGPARAM",        0,  2,   1,  false,      Tier::Base}},
 	{Instruction::CREATE,         {"CREATE",          0,  3,   1,  true,       Tier::Special}},
 	{Instruction::CALL,           {"CALL",            0,  7,   1,  true,       Tier::Special}},
