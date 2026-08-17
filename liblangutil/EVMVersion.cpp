@@ -68,7 +68,17 @@ bool EVMVersion::hasOpcode(Instruction _opcode) const
 	case Instruction::FRAMEDATACOPY:
 	case Instruction::FRAMEPARAM:
 	case Instruction::SIGPARAM:
+	case Instruction::SIGDATACOPY:
 		return hasFrameTransaction();
+	case Instruction::RECENTROOTREFLOAD:
+	case Instruction::TXTRACE:
+	case Instruction::TXDIFF:
+	case Instruction::EVENTDATACOPY:
+		return hasHegotaPFI();
+	case Instruction::SETDELEGATE:
+		return hasSetDelegate();
+	case Instruction::SETSELFDELEGATE:
+		return hasSetSelfDelegate();
 	default:
 		return true;
 	}

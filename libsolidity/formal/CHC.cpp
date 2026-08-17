@@ -1025,7 +1025,11 @@ void CHC::externalFunctionCall(FunctionCall const& _funCall)
 
 	// No reentrancy from constructor calls.
 	if (!m_currentFunction || m_currentFunction->isConstructor())
+	{
+		if (!usesStaticCall(_funCall))
+			state().newWorldStateEpoch();
 		return;
+	}
 
 	if (Expression const* value = valueOption(callOptions))
 		decreaseBalanceFromOptionsValue(*value);

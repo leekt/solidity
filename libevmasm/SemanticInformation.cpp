@@ -99,6 +99,7 @@ std::vector<SemanticInformation::Operation> SemanticInformation::readWriteOperat
 		return {op};
 	}
 	case Instruction::EXTCODECOPY:
+	case Instruction::EVENTDATACOPY:
 	{
 		assertThrow(memory(_instruction) == Effect::Write, OptimizerException, "");
 		assertThrow(storage(_instruction) == Effect::None, OptimizerException, "");
@@ -115,6 +116,7 @@ std::vector<SemanticInformation::Operation> SemanticInformation::readWriteOperat
 	case Instruction::RETURNDATACOPY:
 	// FRAMEDATACOPY copies a frame's input data to memory, like CALLDATACOPY.
 	case Instruction::FRAMEDATACOPY:
+	case Instruction::SIGDATACOPY:
 	{
 		assertThrow(memory(_instruction) == Effect::Write, OptimizerException, "");
 		assertThrow(storage(_instruction) == Effect::None, OptimizerException, "");
@@ -443,6 +445,8 @@ SemanticInformation::Effect SemanticInformation::memory(Instruction _instruction
 	case Instruction::DELEGATECALL:
 	case Instruction::STATICCALL:
 	case Instruction::FRAMEDATACOPY:
+	case Instruction::SIGDATACOPY:
+	case Instruction::EVENTDATACOPY:
 		return SemanticInformation::Write;
 
 	case Instruction::CREATE:
@@ -537,6 +541,8 @@ SemanticInformation::Effect SemanticInformation::otherState(Instruction _instruc
 	case Instruction::CREATE:
 	case Instruction::CREATE2:
 	case Instruction::SELFDESTRUCT:
+	case Instruction::SETDELEGATE:
+	case Instruction::SETSELFDELEGATE:
 	case Instruction::STATICCALL: // because it can affect returndatasize
 		// Strictly speaking, log0, .., log4 writes to the state, but the EVM cannot read it, so they
 		// are just marked as having 'other side effects.'
@@ -553,6 +559,25 @@ SemanticInformation::Effect SemanticInformation::otherState(Instruction _instruc
 		// ADDRESS are excluded because they cannot change during execution.
 		return SemanticInformation::Read;
 
+	default:
+		return SemanticInformation::None;
+	}
+}
+
+SemanticInformation::Effect SemanticInformation::worldState(Instruction _instruction)
+{
+	// Storage writes include calls, creation and SSTORE. The cases below mutate persistent
+	// account or transaction-payer state without having a storage effect.
+	if (storage(_instruction) == SemanticInformation::Write)
+		return SemanticInformation::Write;
+
+	switch (_instruction)
+	{
+	case Instruction::SELFDESTRUCT:
+	case Instruction::SETDELEGATE:
+	case Instruction::SETSELFDELEGATE:
+	case Instruction::APPROVE:
+		return SemanticInformation::Write;
 	default:
 		return SemanticInformation::None;
 	}
@@ -587,8 +612,8 @@ bool SemanticInformation::invalidInPureFunctions(Instruction _instruction)
 	case Instruction::STATICCALL:
 	case Instruction::SLOAD:
 	case Instruction::TLOAD:
-	// The EIP-8141 introspection instructions read transaction-scoped context,
-	// like CALLER or CALLVALUE, so they are not pure but are fine in a view
+	// Transaction-context introspection instructions, including EIP-8141 and
+	// the provisional Hegota PFI opcodes, are not pure but are fine in a view
 	// function. APPROVE is handled by invalidInViewFunctions below, since it
 	// mutates state.
 	case Instruction::TXPARAM:
@@ -596,6 +621,11 @@ bool SemanticInformation::invalidInPureFunctions(Instruction _instruction)
 	case Instruction::FRAMEDATACOPY:
 	case Instruction::FRAMEPARAM:
 	case Instruction::SIGPARAM:
+	case Instruction::SIGDATACOPY:
+	case Instruction::RECENTROOTREFLOAD:
+	case Instruction::TXTRACE:
+	case Instruction::TXDIFF:
+	case Instruction::EVENTDATACOPY:
 		return true;
 	default:
 		break;
@@ -622,6 +652,8 @@ bool SemanticInformation::invalidInViewFunctions(Instruction _instruction)
 	case Instruction::DELEGATECALL:
 	case Instruction::CREATE2:
 	case Instruction::SELFDESTRUCT:
+	case Instruction::SETDELEGATE:
+	case Instruction::SETSELFDELEGATE:
 	// APPROVE updates the transaction-scoped approval context: it increments the
 	// sender's nonce, sets the payer and collects the maximum transaction cost.
 	case Instruction::APPROVE:

@@ -153,10 +153,38 @@ std::set<std::string, std::less<>> createReservedIdentifiers(langutil::EVMVersio
 		case evmasm::Instruction::FRAMEDATACOPY:
 		case evmasm::Instruction::FRAMEPARAM:
 		case evmasm::Instruction::SIGPARAM:
+		case evmasm::Instruction::SIGDATACOPY:
 			return true;
 		default:
 			return false;
 		}
+	};
+	// Keep the provisional Hegota PFI names available to user code before the
+	// experimental version that introduces the opcodes.
+	auto hegotaPFIException = [&](evmasm::Instruction _instr) -> bool
+	{
+		if (_evmVersion.hasHegotaPFI())
+			return false;
+		switch (_instr)
+		{
+		case evmasm::Instruction::RECENTROOTREFLOAD:
+		case evmasm::Instruction::TXTRACE:
+		case evmasm::Instruction::TXDIFF:
+		case evmasm::Instruction::EVENTDATACOPY:
+			return true;
+		default:
+			return false;
+		}
+	};
+	// Keep the draft EIP-7819 name available to user code before @future.
+	auto setDelegateException = [&](evmasm::Instruction _instr) -> bool
+	{
+		return _instr == evmasm::Instruction::SETDELEGATE && !_evmVersion.hasSetDelegate();
+	};
+	// Keep the draft EIP-7851 name available to user code before @future.
+	auto setSelfDelegateException = [&](evmasm::Instruction _instr) -> bool
+	{
+		return _instr == evmasm::Instruction::SETSELFDELEGATE && !_evmVersion.hasSetSelfDelegate();
 	};
 
 	std::set<std::string, std::less<>> reserved;
@@ -172,14 +200,13 @@ std::set<std::string, std::less<>> createReservedIdentifiers(langutil::EVMVersio
 			!transientStorageException(instr.second) &&
 			!clzException(instr.second) &&
 			!slotNumException(instr.second) &&
-			!frameTransactionException(instr.second)
+			!frameTransactionException(instr.second) &&
+			!hegotaPFIException(instr.second) &&
+			!setDelegateException(instr.second) &&
+			!setSelfDelegateException(instr.second)
 		)
 			reserved.emplace(name);
 	}
-	// Like the frame transaction instruction names, sigdatacopy stays usable
-	// as an ordinary identifier before the fork that introduces SIGPARAM.
-	if (_evmVersion.hasFrameTransaction())
-		reserved.emplace("sigdatacopy");
 	reserved += std::vector<std::string>{
 		"linkersymbol",
 		"datasize",

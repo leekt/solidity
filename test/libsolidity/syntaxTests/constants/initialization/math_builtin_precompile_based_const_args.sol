@@ -14,3 +14,6 @@ contract A {
     bytes20 constant ripemd = ripemd160(hex"ffff");
     bytes20 constant ripemdConstArg = ripemd160(data);
 }
+// ====
+// EVMVersion: <@future
+// ----

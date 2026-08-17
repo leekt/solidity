@@ -40,7 +40,8 @@ public:
 	smtutil::Expression value(unsigned _idx) const { return m_tuple->valueAtIndex(_idx); }
 	smtutil::SortPointer const& sort() const { return m_tuple->sort(); }
 	unsigned index() const { return m_tuple->index(); }
-	void newVar() { m_tuple->increaseIndex(); }
+	smtutil::Expression newVar() { return m_tuple->increaseIndex(); }
+	void setIndex(unsigned _index) { m_tuple->setIndex(_index); }
 	void reset() { m_tuple->resetIndex(); }
 
 	/// @returns the symbolic _member.
@@ -64,6 +65,7 @@ private:
  *   - balances
  *   - array of address => bool representing whether an address is used by a contract
  *   - storage of contracts
+ *   - an optional opaque world-state epoch for state-dependent builtins
  * - block and transaction properties, represented as a tuple of:
  *   - blobhash
  *   - blockhash
@@ -112,7 +114,11 @@ public:
 	smtutil::Expression state() const { solAssert(m_state, ""); return m_state->value(); }
 	smtutil::Expression state(unsigned _idx) const { solAssert(m_state, ""); return m_state->value(_idx); }
 	smtutil::SortPointer const& stateSort() const { solAssert(m_state, ""); return m_state->sort(); }
-	void newState() { solAssert(m_state, ""); m_state->newVar(); }
+	unsigned stateIndex() const { solAssert(m_state, ""); return m_state->index(); }
+	smtutil::Expression newState() { solAssert(m_state, ""); return m_state->newVar(); }
+	void setStateIndex(unsigned _index) { solAssert(m_state, ""); m_state->setIndex(_index); }
+	smtutil::Expression worldStateEpoch() const;
+	void newWorldStateEpoch();
 
 	void newBalances();
 
@@ -159,11 +165,11 @@ public:
 	/// Crypto functions.
 	//@{
 	/// @returns the crypto functions represented as a tuple of arrays.
-	smtutil::Expression crypto() const { return m_crypto.value(); }
-	smtutil::Expression crypto(unsigned _idx) const { return m_crypto.value(_idx); }
-	smtutil::SortPointer const& cryptoSort() const { return m_crypto.sort(); }
-	void newCrypto() { m_crypto.newVar(); }
-	smtutil::Expression cryptoFunction(std::string const& _member) const { return m_crypto.member(_member); }
+	smtutil::Expression crypto() const { solAssert(m_crypto, ""); return m_crypto->value(); }
+	smtutil::Expression crypto(unsigned _idx) const { solAssert(m_crypto, ""); return m_crypto->value(_idx); }
+	smtutil::SortPointer const& cryptoSort() const { solAssert(m_crypto, ""); return m_crypto->sort(); }
+	void newCrypto() { solAssert(m_crypto, ""); m_crypto->newVar(); }
+	smtutil::Expression cryptoFunction(std::string const& _member) const { solAssert(m_crypto, ""); return m_crypto->member(_member); }
 	//@}
 
 	/// Calls the internal methods that build
@@ -209,7 +215,13 @@ private:
 	std::string stateVarStorageKey(VariableDeclaration const& _var, ContractDefinition const& _contract) const;
 
 	/// Builds state.storage based on _contracts.
-	void buildState(std::set<ContractDefinition const*, ASTCompareByID<ContractDefinition>> const& _contracts, bool _allStorages);
+	void buildState(
+		std::set<ContractDefinition const*, ASTCompareByID<ContractDefinition>> const& _contracts,
+		bool _allStorages,
+		bool _hasWorldStateEpoch
+	);
+	/// Builds the symbolic cryptographic functions, including ECRecover's optional world-state epoch input.
+	void buildCryptoFunctions(bool _stateDependentECRecover);
 
 	/// Builds m_abi based on the abi.* calls _abiFunctions.
 	void buildABIFunctions(std::set<FunctionCall const*, ASTCompareByID<FunctionCall>> const& _abiFunctions);
@@ -238,41 +250,13 @@ private:
 	/// each element of the tuple represents a contract,
 	/// and is defined by an array where the index is the contract's address
 	/// and the element is a tuple containing the state variables of that contract.
+	/// - worldStateEpoch: an opaque value invalidated by operations that can mutate world state.
 	std::unique_ptr<BlockchainVariable> m_state;
+	bool m_hasWorldStateEpoch = false;
 
 	BlockchainVariable m_tx{"tx", transactionMemberSorts(), m_context};
 
-	BlockchainVariable m_crypto{
-		"crypto",
-		{
-			{"keccak256", std::make_shared<smtutil::ArraySort>(
-				smt::smtSort(*TypeProvider::bytesStorage()),
-				smtSort(*TypeProvider::fixedBytes(32))
-			)},
-			{"sha256", std::make_shared<smtutil::ArraySort>(
-				smt::smtSort(*TypeProvider::bytesStorage()),
-				smtSort(*TypeProvider::fixedBytes(32))
-			)},
-			{"ripemd160", std::make_shared<smtutil::ArraySort>(
-				smt::smtSort(*TypeProvider::bytesStorage()),
-				smtSort(*TypeProvider::fixedBytes(20))
-			)},
-			{"ecrecover", std::make_shared<smtutil::ArraySort>(
-				std::make_shared<smtutil::TupleSort>(
-					"ecrecover_input_type",
-					std::vector<std::string>{"hash", "v", "r", "s"},
-					std::vector<smtutil::SortPointer>{
-						smt::smtSort(*TypeProvider::fixedBytes(32)),
-						smt::smtSort(*TypeProvider::uint(8)),
-						smt::smtSort(*TypeProvider::fixedBytes(32)),
-						smt::smtSort(*TypeProvider::fixedBytes(32))
-					}
-				),
-				smtSort(*TypeProvider::address())
-			)}
-		},
-		m_context
-	};
+	std::unique_ptr<BlockchainVariable> m_crypto;
 
 	/// Tuple containing all used ABI functions.
 	std::unique_ptr<BlockchainVariable> m_abi;

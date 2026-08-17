@@ -78,6 +78,7 @@ public:
 			!m_sideEffects.movableApartFromEffects ||
 			m_sideEffects.storage == SideEffects::Write ||
 			m_sideEffects.otherState == SideEffects::Write ||
+			m_sideEffects.worldState == SideEffects::Write ||
 			m_sideEffects.memory == SideEffects::Write ||
 			m_sideEffects.transientStorage == SideEffects::Write
 		)
@@ -85,6 +86,9 @@ public:
 
 		if (m_sideEffects.otherState == SideEffects::Read)
 			if (_other.otherState == SideEffects::Write)
+				return false;
+		if (m_sideEffects.worldState == SideEffects::Read)
+			if (_other.worldState == SideEffects::Write)
 				return false;
 
 		if (m_sideEffects.storage == SideEffects::Read)
@@ -111,6 +115,7 @@ public:
 	}
 	bool cannotLoop() const { return m_sideEffects.cannotLoop; }
 	bool invalidatesStorage() const { return m_sideEffects.storage == SideEffects::Write; }
+	bool invalidatesWorldState() const { return m_sideEffects.worldState == SideEffects::Write; }
 	bool invalidatesMemory() const { return m_sideEffects.memory == SideEffects::Write; }
 
 	SideEffects sideEffects() { return m_sideEffects; }

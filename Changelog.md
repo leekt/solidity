@@ -4,10 +4,15 @@ Language Features:
 * Custom Storage Layout: Allow signed positive expressions.
 * EVM: Support `block.slotnum` to access the beacon chain slot number of the current block, available since the Amsterdam EVM version ([EIP-7843](https://eips.ethereum.org/EIPS/eip-7843)).
 * Yul: Introduce builtin `slotnum()` for the `SLOTNUM` opcode, available since the Amsterdam EVM version ([EIP-7843](https://eips.ethereum.org/EIPS/eip-7843)).
-* Yul: Introduce builtins `approvetx()`, `txparam()`, `framedataload()`, `framedatacopy()`, `frameparam()` and `sigparam()` for the frame transaction opcodes, available on the experimental `@future` EVM version ([EIP-8141](https://eips.ethereum.org/EIPS/eip-8141)). The EIP's `APPROVE` is spelled `approvetx` to keep the ERC-20 name free.
-* Yul: Introduce builtin `sigdatacopy(signatureIndex, memOffset, dataOffset, length)` for the copy form of `SIGPARAM` (`param == 0x04`), whose stack arity differs from the metadata forms exposed by `sigparam()`. This makes copying `ARBITRARY` signature bytes possible from inline assembly, where `verbatim` is unavailable.
+* Yul: Introduce builtins `approvetx()`, `txparam()`, `framedataload()`, `framedatacopy()`, `frameparam()`, `sigparam()` and `sigdatacopy()` for the frame transaction opcodes, available on the experimental `@future` EVM version ([EIP-8141](https://eips.ethereum.org/EIPS/eip-8141)). The EIP's `APPROVE` is spelled `approvetx` to keep the ERC-20 name free.
+* Yul: Introduce builtin `sigdatacopy(memOffset, dataOffset, length, signatureIndex)` for the native `SIGDATACOPY` opcode (`0xB5`). It copies `ARBITRARY` signature bytes like `CALLDATACOPY`, including zero extension, and replaces the former `SIGPARAM` parameter `0x04`.
+* EVM: Add the provisional combined Hegota PFI opcode assignments `RECENTROOTREFLOAD` (`0xB6`), `TXTRACE` (`0xB7`), `TXDIFF` (`0xB8`) and `EVENTDATACOPY` (`0xB9`) behind the experimental `@future` EVM version ([EIP-8272](https://eips.ethereum.org/EIPS/eip-8272), [EIP-7906](https://eips.ethereum.org/EIPS/eip-7906)).
+* Yul: Introduce experimental builtins `recentrootrefload(field, index)`, `txtrace(index, param)`, `txdiff(param, address, in3)` and `eventdatacopy(eventIndex, memOffset, dataOffset, length)` for the provisional Hegota PFI opcodes.
+* Yul: Introduce experimental builtin `setdelegate(salt, target)` for the `SETDELEGATE` opcode (`0xF6`), available on the experimental `@future` EVM version ([EIP-7819](https://eips.ethereum.org/EIPS/eip-7819)).
+* Yul: Introduce experimental builtin `setselfdelegate(target)` for EIP-7851 `SETSELFDELEGATE`, available on the experimental `@future` EVM version. EIP-7851 leaves the opcode TBD; this toolkit uses the NON-NORMATIVE provisional assignment `0xF7` because `0xF6` is allocated to EIP-7819 ([EIP-7851](https://eips.ethereum.org/EIPS/eip-7851)).
 
 Compiler Features:
+* Type Checker: Treat high-level `ecrecover` as `view` on the experimental `@future` EVM version and model its result in the SMTChecker using an opaque world-state epoch invalidated by state-changing operations ([EIP-8151](https://eips.ethereum.org/EIPS/eip-8151)).
 * Commandline Interface: Remove support for the experimental Language Server Protocol (LSP) mode.
 * EVM-ASM Optimizer: Improve performance of block deduplicator.
 * General: Improve performance throughout the compiler using Boost's flat versions of unordered set and map.

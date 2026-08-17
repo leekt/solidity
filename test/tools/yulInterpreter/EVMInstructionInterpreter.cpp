@@ -261,8 +261,8 @@ u256 EVMInstructionInterpreter::eval(
 		return m_state.slotnum;
 	// EIP-8141 frame transaction introspection. The interpreter models a plain
 	// call, not a frame transaction, so there is no frame or signature list to
-	// report on: these yield zero rather than inventing state. FRAMEDATACOPY
-	// copies from empty frame data, which zero-fills the destination.
+	// report on: these yield zero rather than inventing state. The copy opcodes
+	// copy from empty data, which zero-fills the destination.
 	case Instruction::TXPARAM:
 	case Instruction::FRAMEPARAM:
 	case Instruction::SIGPARAM:
@@ -270,8 +270,21 @@ u256 EVMInstructionInterpreter::eval(
 		logTrace(_instruction, arg);
 		return 0;
 	case Instruction::FRAMEDATACOPY:
+	case Instruction::SIGDATACOPY:
 		if (accessMemory(arg[0], arg[2]))
 			copyZeroExtended(m_state.memory, {}, size_t(arg[0]), size_t(arg[1]), size_t(arg[2]));
+		logTrace(_instruction, arg);
+		return 0;
+	// The interpreter does not model the provisional Hegota PFI transaction
+	// context, so scalar reads return zero and event data is empty.
+	case Instruction::RECENTROOTREFLOAD:
+	case Instruction::TXTRACE:
+	case Instruction::TXDIFF:
+		logTrace(_instruction, arg);
+		return 0;
+	case Instruction::EVENTDATACOPY:
+		if (accessMemory(arg[1], arg[3]))
+			copyZeroExtended(m_state.memory, {}, size_t(arg[1]), size_t(arg[2]), size_t(arg[3]));
 		logTrace(_instruction, arg);
 		return 0;
 	case Instruction::EXTCODESIZE:
@@ -386,6 +399,21 @@ u256 EVMInstructionInterpreter::eval(
 			return (0xdddddd + arg[1]) & u256("0xffffffffffffffffffffffffffffffffffffffff");
 		else
 			return 0xdddddd;
+	// The interpreter does not model accounts, but it can return the exact
+	// deterministic EIP-7819 location produced by SETDELEGATE.
+	case Instruction::SETDELEGATE:
+	{
+		bytes preimage{0xef, 0x01, 0x00};
+		preimage += m_state.address.asBytes();
+		preimage += h256(arg[0]).asBytes();
+		logTrace(_instruction, arg);
+		return u256(keccak256(preimage)) & u256("0xffffffffffffffffffffffffffffffffffffffff");
+	}
+	// The interpreter has no raw account-code model. Treat its authority as
+	// ineligible, so EIP-7851 deterministically takes the no-state-change path.
+	case Instruction::SETSELFDELEGATE:
+		logTrace(_instruction, arg);
+		return 0;
 	case Instruction::CALL:
 	case Instruction::CALLCODE:
 		accessMemory(arg[3], arg[4]);
@@ -528,23 +556,6 @@ u256 EVMInstructionInterpreter::evalBuiltin(
 	std::vector<u256> const& _evaluatedArguments
 )
 {
-	// sigdatacopy carries SIGPARAM as its instruction for version gating, but
-	// has the copy form's arity, so it must be handled before the generic
-	// instruction dispatch. Signature bytes are not modeled; zero-fill the
-	// destination like FRAMEDATACOPY.
-	if (_fun.name == "sigdatacopy")
-	{
-		if (accessMemory(_evaluatedArguments.at(1), _evaluatedArguments.at(3)))
-			copyZeroExtended(
-				m_state.memory,
-				{},
-				size_t(_evaluatedArguments.at(1)),
-				size_t(_evaluatedArguments.at(2)),
-				size_t(_evaluatedArguments.at(3))
-			);
-		return 0;
-	}
-
 	if (_fun.instruction)
 		return eval(*_fun.instruction, _evaluatedArguments);
 
@@ -715,15 +726,15 @@ std::pair<bool, size_t> EVMInstructionInterpreter::isInputMemoryPtrModified(
 			return {false, 0};
 	}
 	else if (
-		_pseudoInstruction == "RETURNDATACOPY" || _pseudoInstruction == "CALLDATACOPY"
-		|| _pseudoInstruction == "CODECOPY")
+		_pseudoInstruction == "RETURNDATACOPY" || _pseudoInstruction == "CALLDATACOPY" ||
+		_pseudoInstruction == "CODECOPY" || _pseudoInstruction == "SIGDATACOPY")
 	{
 		if (_arguments[2] == 0)
 			return {true, 0};
 		else
 			return {false, 0};
 	}
-	else if (_pseudoInstruction == "EXTCODECOPY")
+	else if (_pseudoInstruction == "EXTCODECOPY" || _pseudoInstruction == "EVENTDATACOPY")
 	{
 		if (_arguments[3] == 0)
 			return {true, 1};

@@ -164,6 +164,8 @@ void UnusedStoreEliminator::visit(Statement const& _statement)
 		*instruction == Instruction::CODECOPY ||
 		*instruction == Instruction::CALLDATACOPY ||
 		*instruction == Instruction::RETURNDATACOPY ||
+		*instruction == Instruction::SIGDATACOPY ||
+		*instruction == Instruction::EVENTDATACOPY ||
 		// TODO: Removing MCOPY is complicated because it's not just a store but also a load.
 		//*instruction == Instruction::MCOPY ||
 		*instruction == Instruction::MSTORE ||
@@ -177,6 +179,9 @@ void UnusedStoreEliminator::visit(Statement const& _statement)
 	yulAssert(isCandidateForRemoval == (isStorageWrite || (!m_ignoreMemory && isMemoryWrite)));
 	if (isCandidateForRemoval)
 	{
+		// Even an unused copy must preserve exceptional source validation.
+		if (*instruction == Instruction::SIGDATACOPY || *instruction == Instruction::EVENTDATACOPY)
+			return;
 		if (*instruction == Instruction::RETURNDATACOPY)
 		{
 			// Out-of-bounds access to the returndata buffer results in a revert,

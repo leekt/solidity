@@ -179,6 +179,11 @@ std::map<std::string, Instruction, std::less<>> const solidity::evmasm::c_instru
 	{ "FRAMEDATACOPY", Instruction::FRAMEDATACOPY },
 	{ "FRAMEPARAM", Instruction::FRAMEPARAM },
 	{ "SIGPARAM", Instruction::SIGPARAM },
+	{ "SIGDATACOPY", Instruction::SIGDATACOPY },
+	{ "RECENTROOTREFLOAD", Instruction::RECENTROOTREFLOAD },
+	{ "TXTRACE", Instruction::TXTRACE },
+	{ "TXDIFF", Instruction::TXDIFF },
+	{ "EVENTDATACOPY", Instruction::EVENTDATACOPY },
 	{ "CREATE", Instruction::CREATE },
 	{ "CALL", Instruction::CALL },
 	{ "CALLCODE", Instruction::CALLCODE },
@@ -186,6 +191,8 @@ std::map<std::string, Instruction, std::less<>> const solidity::evmasm::c_instru
 	{ "RETURN", Instruction::RETURN },
 	{ "DELEGATECALL", Instruction::DELEGATECALL },
 	{ "CREATE2", Instruction::CREATE2 },
+	{ "SETDELEGATE", Instruction::SETDELEGATE },
+	{ "SETSELFDELEGATE", Instruction::SETSELFDELEGATE },
 	{ "REVERT", Instruction::REVERT },
 	{ "INVALID", Instruction::INVALID },
 	{ "SELFDESTRUCT", Instruction::SELFDESTRUCT }
@@ -343,12 +350,14 @@ static std::map<Instruction, InstructionInfo> const c_instructionInfo =
 	{Instruction::FRAMEDATALOAD,  {"FRAMEDATALOAD",   0,  2,   1,  false,      Tier::VeryLow}},
 	{Instruction::FRAMEDATACOPY,  {"FRAMEDATACOPY",   0,  4,   0,  true,       Tier::VeryLow}},
 	{Instruction::FRAMEPARAM,     {"FRAMEPARAM",      0,  2,   1,  false,      Tier::Base}},
-	// SIGPARAM has an operand-dependent stack effect: the metadata forms
-	// (param 0x00-0x03) take 2 and return 1, while the copy form (param 0x04)
-	// takes 5 and returns none. InstructionInfo cannot express that, so only the
-	// metadata form is described here; the copy form is exposed as the separate
-	// Yul builtin sigdatacopy, which hardcodes the param.
 	{Instruction::SIGPARAM,       {"SIGPARAM",        0,  2,   1,  false,      Tier::Base}},
+	{Instruction::SIGDATACOPY,    {"SIGDATACOPY",     0,  4,   0,  true,       Tier::VeryLow}},
+	// These transaction-context reads can exceptional-halt on invalid inputs,
+	// so they must not be treated as removable even when their result is unused.
+	{Instruction::RECENTROOTREFLOAD, {"RECENTROOTREFLOAD", 0, 2, 1, true,      Tier::VeryLow}},
+	{Instruction::TXTRACE,        {"TXTRACE",         0,  2,   1,  true,       Tier::Special}},
+	{Instruction::TXDIFF,         {"TXDIFF",          0,  3,   1,  true,       Tier::Special}},
+	{Instruction::EVENTDATACOPY,  {"EVENTDATACOPY",   0,  4,   0,  true,       Tier::VeryLow}},
 	{Instruction::CREATE,         {"CREATE",          0,  3,   1,  true,       Tier::Special}},
 	{Instruction::CALL,           {"CALL",            0,  7,   1,  true,       Tier::Special}},
 	{Instruction::CALLCODE,       {"CALLCODE",        0,  7,   1,  true,       Tier::Special}},
@@ -356,6 +365,8 @@ static std::map<Instruction, InstructionInfo> const c_instructionInfo =
 	{Instruction::DELEGATECALL,   {"DELEGATECALL",    0,  6,   1,  true,       Tier::Special}},
 	{Instruction::STATICCALL,     {"STATICCALL",      0,  6,   1,  true,       Tier::Special}},
 	{Instruction::CREATE2,        {"CREATE2",         0,  4,   1,  true,       Tier::Special}},
+	{Instruction::SETDELEGATE,    {"SETDELEGATE",     0,  2,   1,  true,       Tier::Special}},
+	{Instruction::SETSELFDELEGATE, {"SETSELFDELEGATE", 0,  1,   1,  true,       Tier::Special}},
 	{Instruction::REVERT,         {"REVERT",          0,  2,   0,  true,       Tier::Zero}},
 	{Instruction::INVALID,        {"INVALID",         0,  0,   0,  true,       Tier::Zero}},
 	{Instruction::SELFDESTRUCT,   {"SELFDESTRUCT",    0,  1,   0,  true,       Tier::Special}}
