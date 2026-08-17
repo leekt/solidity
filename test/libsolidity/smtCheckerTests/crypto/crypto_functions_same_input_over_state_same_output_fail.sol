@@ -43,6 +43,7 @@ contract C {
 	}
 }
 // ====
+// EVMVersion: <@future
 // SMTEngine: all
 // SMTIgnoreOS: macos
 // ----

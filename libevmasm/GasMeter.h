@@ -149,6 +149,8 @@ namespace GasCosts
 	static unsigned const callStipend = 2300;                  // GAS_CALL_STIPEND
 	static unsigned const callValueTransferGas = 9000;         // GAS_CALL_VALUE
 	static unsigned const callNewAccountGas = 25000;           // GAS_NEW_ACCOUNT / GAS_SELF_DESTRUCT_NEW_ACCOUNT
+	static unsigned const setDelegateGas = 25000;              // EIP-7819 SETDELEGATE
+	static unsigned const setSelfDelegateGas = 9500;           // EIP-7851 SETSELFDELEGATE
 	inline unsigned selfdestructGas(langutil::EVMVersion _evmVersion) // GAS_SELF_DESTRUCT
 	{
 		if (_evmVersion >= langutil::EVMVersion::berlin())

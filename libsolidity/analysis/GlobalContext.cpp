@@ -78,6 +78,7 @@ inline std::vector<std::shared_ptr<MagicVariableDeclaration const>> constructMag
 	static auto const magicVarDecl = [](std::string const& _name, Type const* _type) {
 		return std::make_shared<MagicVariableDeclaration>(magicVariableToID(_name), _name, _type);
 	};
+	auto const ecRecoverMutability = _evmVersion.hasCodeRestrictedECRecover() ? StateMutability::View : StateMutability::Pure;
 
 	std::vector<std::shared_ptr<MagicVariableDeclaration const>> magicVariableDeclarations = {
 		magicVarDecl("abi", TypeProvider::magic(MagicType::Kind::ABI)),
@@ -85,7 +86,7 @@ inline std::vector<std::shared_ptr<MagicVariableDeclaration const>> constructMag
 		magicVarDecl("assert", TypeProvider::function(strings{"bool"}, strings{}, FunctionType::Kind::Assert, StateMutability::Pure)),
 		magicVarDecl("block", TypeProvider::magic(MagicType::Kind::Block)),
 		magicVarDecl("blockhash", TypeProvider::function(strings{"uint256"}, strings{"bytes32"}, FunctionType::Kind::BlockHash, StateMutability::View)),
-		magicVarDecl("ecrecover", TypeProvider::function(strings{"bytes32", "uint8", "bytes32", "bytes32"}, strings{"address"}, FunctionType::Kind::ECRecover, StateMutability::Pure)),
+		magicVarDecl("ecrecover", TypeProvider::function(strings{"bytes32", "uint8", "bytes32", "bytes32"}, strings{"address"}, FunctionType::Kind::ECRecover, ecRecoverMutability)),
 		magicVarDecl("erc7201", TypeProvider::function(strings{"string memory"}, strings{"uint256"}, FunctionType::Kind::ERC7201, StateMutability::Pure)),
 		magicVarDecl("gasleft", TypeProvider::function(strings(), strings{"uint256"}, FunctionType::Kind::GasLeft, StateMutability::View)),
 		magicVarDecl("keccak256", TypeProvider::function(strings{"bytes memory"}, strings{"bytes32"}, FunctionType::Kind::KECCAK256, StateMutability::Pure)),

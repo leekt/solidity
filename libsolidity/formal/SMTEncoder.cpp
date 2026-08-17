@@ -335,6 +335,8 @@ bool SMTEncoder::visit(InlineAssembly const& _inlineAsm)
 		resetMemoryVariables();
 	if (sideEffectsCollector.invalidatesStorage())
 		resetStorageVariables();
+	else if (sideEffectsCollector.invalidatesWorldState())
+		state().newWorldStateEpoch();
 
 	auto assignedVars = AssignedExternalsCollector(_inlineAsm).assignedVars;
 	for (auto const* var: assignedVars)
@@ -502,6 +504,8 @@ void SMTEncoder::endVisit(UnaryOperation const& _op)
 	{
 		if (auto decl = identifierToVariable(subExpr))
 		{
+			if (decl->isStateVariable() || decl->referenceLocation() == VariableDeclaration::Location::Storage)
+				state().newWorldStateEpoch();
 			m_context.newValue(*decl);
 			m_context.setZeroValue(*decl);
 		}
@@ -727,6 +731,9 @@ void SMTEncoder::endVisit(FunctionCall const& _funCall)
 				" with the CHC engine."
 			);
 		break;
+	case FunctionType::Kind::Selfdestruct:
+		state().newWorldStateEpoch();
+		[[fallthrough]];
 	case FunctionType::Kind::DelegateCall:
 	case FunctionType::Kind::BareCallCode:
 	case FunctionType::Kind::BareDelegateCall:
@@ -870,9 +877,14 @@ void SMTEncoder::visitCryptoFunction(FunctionCall const& _funCall)
 		auto arg2 = expr(*_funCall.arguments().at(2), TypeProvider::fixedBytes(32));
 		auto arg3 = expr(*_funCall.arguments().at(3), TypeProvider::fixedBytes(32));
 		auto inputSort = dynamic_cast<smtutil::ArraySort&>(*e.sort).domain;
+		std::vector<smtutil::Expression> inputs{arg0, arg1, arg2, arg3};
+		if (funType.stateMutability() == StateMutability::View)
+			inputs.emplace_back(state().worldStateEpoch());
+		else
+			solAssert(funType.stateMutability() == StateMutability::Pure, "");
 		auto ecrecoverInput = smtutil::Expression::tuple_constructor(
 			smtutil::Expression(std::make_shared<smtutil::SortSort>(inputSort), ""),
-			{arg0, arg1, arg2, arg3}
+			std::move(inputs)
 		);
 		result = smtutil::Expression::select(e, ecrecoverInput);
 	}
@@ -1635,8 +1647,35 @@ void SMTEncoder::arrayAssignment()
 	m_arrayAssignmentHappened = true;
 }
 
+bool SMTEncoder::storageReferenceNeedsExplicitEpoch(Expression const& _storageReference) const
+{
+	if (!_storageReference.annotation().type->dataStoredIn(DataLocation::Storage))
+		return false;
+
+	Expression const* root = cleanExpression(_storageReference);
+	while (true)
+	{
+		if (auto variable = identifierToVariable(*root))
+			return !variable->isStateVariable();
+		if (auto indexAccess = dynamic_cast<IndexAccess const*>(root))
+			root = cleanExpression(indexAccess->baseExpression());
+		else if (auto memberAccess = dynamic_cast<MemberAccess const*>(root))
+			root = cleanExpression(memberAccess->expression());
+		else
+			return true;
+	}
+}
+
 void SMTEncoder::indexOrMemberAssignment(Expression const& _expr, smtutil::Expression const& _rightHandSide)
 {
+	Expression const* storageReference = nullptr;
+	if (auto indexAccess = dynamic_cast<IndexAccess const*>(&_expr))
+		storageReference = &indexAccess->baseExpression();
+	else if (auto memberAccess = dynamic_cast<MemberAccess const*>(&_expr))
+		storageReference = &memberAccess->expression();
+	if (storageReference && storageReferenceNeedsExplicitEpoch(*storageReference))
+		state().newWorldStateEpoch();
+
 	auto toStore = _rightHandSide;
 	auto const* lastExpr = &_expr;
 	while (true)
@@ -1726,6 +1765,8 @@ void SMTEncoder::arrayPush(FunctionCall const& _funCall)
 {
 	auto memberAccess = dynamic_cast<MemberAccess const*>(&_funCall.expression());
 	solAssert(memberAccess, "");
+	if (storageReferenceNeedsExplicitEpoch(memberAccess->expression()))
+		state().newWorldStateEpoch();
 	auto symbArray = std::dynamic_pointer_cast<smt::SymbolicArrayVariable>(m_context.expression(memberAccess->expression()));
 	solAssert(symbArray, "");
 	auto oldLength = symbArray->length();
@@ -1760,6 +1801,8 @@ void SMTEncoder::arrayPop(FunctionCall const& _funCall)
 {
 	auto memberAccess = dynamic_cast<MemberAccess const*>(cleanExpression(_funCall.expression()));
 	solAssert(memberAccess, "");
+	if (storageReferenceNeedsExplicitEpoch(memberAccess->expression()))
+		state().newWorldStateEpoch();
 	auto symbArray = std::dynamic_pointer_cast<smt::SymbolicArrayVariable>(m_context.expression(memberAccess->expression()));
 	solAssert(symbArray, "");
 
@@ -2312,6 +2355,8 @@ void SMTEncoder::assignment(VariableDeclaration const& _variable, smtutil::Expre
 	Type const* type = _variable.type();
 	if (type->category() == Type::Category::Mapping)
 		arrayAssignment();
+	if (_variable.isStateVariable())
+		state().newWorldStateEpoch();
 	assignment(*m_context.variable(_variable), _value);
 }
 
@@ -2449,6 +2494,7 @@ void SMTEncoder::resetMemoryVariables()
 
 void SMTEncoder::resetStorageVariables()
 {
+	state().newWorldStateEpoch();
 	m_context.resetVariables([&](VariableDeclaration const& _variable) {
 		return _variable.referenceLocation() == VariableDeclaration::Location::Storage || _variable.isStateVariable();
 	});
@@ -2517,19 +2563,25 @@ Type const* SMTEncoder::typeWithoutPointer(Type const* _type)
 
 void SMTEncoder::mergeVariables(smtutil::Expression const& _condition, VariableIndices const& _indicesEndTrue, VariableIndices const& _indicesEndFalse)
 {
-	for (auto const& entry: _indicesEndTrue)
+	for (auto const& entry: _indicesEndTrue.variables)
 	{
 		VariableDeclaration const* var = entry.first;
 		auto trueIndex = entry.second;
-		if (_indicesEndFalse.count(var) && _indicesEndFalse.at(var) != trueIndex)
+		if (_indicesEndFalse.variables.count(var) && _indicesEndFalse.variables.at(var) != trueIndex)
 		{
 			m_context.addAssertion(m_context.newValue(*var) == smtutil::Expression::ite(
 				_condition,
 				valueAtIndex(*var, trueIndex),
-				valueAtIndex(*var, _indicesEndFalse.at(var)))
+				valueAtIndex(*var, _indicesEndFalse.variables.at(var)))
 			);
 		}
 	}
+	if (_indicesEndTrue.stateIndex != _indicesEndFalse.stateIndex)
+		m_context.addAssertion(state().newState() == smtutil::Expression::ite(
+			_condition,
+			state().state(_indicesEndTrue.stateIndex),
+			state().state(_indicesEndFalse.stateIndex)
+		));
 }
 
 smtutil::Expression SMTEncoder::currentValue(VariableDeclaration const& _decl) const
@@ -2698,14 +2750,16 @@ SMTEncoder::VariableIndices SMTEncoder::copyVariableIndices()
 {
 	VariableIndices indices;
 	for (auto const& var: m_context.variables())
-		indices.emplace(var.first, var.second->index());
+		indices.variables.emplace(var.first, var.second->index());
+	indices.stateIndex = state().stateIndex();
 	return indices;
 }
 
 void SMTEncoder::resetVariableIndices(VariableIndices const& _indices)
 {
-	for (auto const& var: _indices)
+	for (auto const& var: _indices.variables)
 		m_context.variable(*var.first)->setIndex(var.second);
+	state().setStateIndex(_indices.stateIndex);
 }
 
 void SMTEncoder::clearIndices(ContractDefinition const* _contract, FunctionDefinition const* _function)

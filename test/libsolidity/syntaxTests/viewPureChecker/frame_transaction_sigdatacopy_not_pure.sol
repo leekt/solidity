@@ -3,7 +3,7 @@ contract C {
     // ARBITRARY signature entry), so it needs view, like the other frame
     // transaction introspection builtins.
     function f() public pure {
-        assembly { sigdatacopy(0, 0, 0, 65) }
+        assembly { sigdatacopy(0, 0, 65, 0) }
     }
 }
 // ====

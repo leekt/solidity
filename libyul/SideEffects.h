@@ -68,6 +68,9 @@ struct SideEffects
 	/// Can write, read or have no effect on the blockchain state, when the value of `otherState` is
 	/// `Write`, `Read` or `None` respectively.
 	Effect otherState = None;
+	/// Can write persistent world state or account code. This is separate from `otherState`, which
+	/// also includes call-local effects such as return data produced by `staticcall`.
+	Effect worldState = None;
 	/// Can write, read or have no effect on storage, when the value of `storage` is `Write`, `Read`
 	/// or `None` respectively. When the value is `Write`, the expression can invalidate storage,
 	/// potentially indirectly through external calls.
@@ -84,7 +87,7 @@ struct SideEffects
 	/// @returns the worst-case side effects.
 	static SideEffects worst()
 	{
-		return SideEffects{false, false, false, false, false, Write, Write, Write, Write};
+		return SideEffects{false, false, false, false, false, Write, Write, Write, Write, Write};
 	}
 
 	/// @returns the combined side effects of two pieces of code.
@@ -97,6 +100,7 @@ struct SideEffects
 			canBeRemovedIfNoMSize && _other.canBeRemovedIfNoMSize,
 			cannotLoop && _other.cannotLoop,
 			otherState + _other.otherState,
+			worldState + _other.worldState,
 			storage + _other.storage,
 			memory + _other.memory,
 			transientStorage + _other.transientStorage
@@ -119,6 +123,7 @@ struct SideEffects
 			canBeRemovedIfNoMSize == _other.canBeRemovedIfNoMSize &&
 			cannotLoop == _other.cannotLoop &&
 			otherState == _other.otherState &&
+			worldState == _other.worldState &&
 			storage == _other.storage &&
 			memory == _other.memory &&
 			transientStorage == _other.transientStorage;

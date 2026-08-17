@@ -11,7 +11,7 @@ contract C {
             let target := frameparam(0, 0x00)
             let word := framedataload(1, 0)
             framedatacopy(0, 0, 32, 1)
-            sigdatacopy(1, 0, 0, 65)
+            sigdatacopy(0, 0, 65, 1)
             if eq(signer, target) { approvetx(0, 0, scope) }
             revert(0, 0)
         }

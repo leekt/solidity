@@ -268,6 +268,9 @@ protected:
 	/// to variable of some SMT array type
 	/// while aliasing is not supported.
 	void arrayAssignment();
+	/// Returns true if writing through _storageReference needs an explicit epoch change because
+	/// the propagated assignment will not reach a state variable.
+	bool storageReferenceNeedsExplicitEpoch(Expression const& _storageReference) const;
 	/// Handles assignments to index or member access.
 	void indexOrMemberAssignment(Expression const& _expr, smtutil::Expression const& _rightHandSide);
 
@@ -320,8 +323,12 @@ protected:
 	/// Handles assignment of an expression to a tuple of variables.
 	void expressionToTupleAssignment(std::vector<std::shared_ptr<VariableDeclaration>> const& _variables, Expression const& _rhs);
 
-	/// Maps a variable to an SSA index.
-	using VariableIndices = std::unordered_map<VariableDeclaration const*, unsigned>;
+	/// Captures the SSA indices for Solidity variables and the blockchain state tuple.
+	struct VariableIndices
+	{
+		std::unordered_map<VariableDeclaration const*, unsigned> variables;
+		unsigned stateIndex = 0;
+	};
 
 	/// Visits the branch given by the statement, pushes and pops the current path conditions.
 	/// @param _condition if present, asserts that this condition is true within the branch.
