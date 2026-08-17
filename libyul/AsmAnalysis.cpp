@@ -761,6 +761,27 @@ bool AsmAnalyzer::validateInstructions(evmasm::Instruction _instr, SourceLocatio
 		errorForVM(7755_error, "only available for Cancun-compatible");
 	else if ((_instr == evmasm::Instruction::TSTORE || _instr == evmasm::Instruction::TLOAD) && !m_evmVersion.supportsTransientStorage())
 		errorForVM(6243_error, "only available for Cancun-compatible");
+	else if (
+		(
+			_instr == evmasm::Instruction::APPROVE ||
+			_instr == evmasm::Instruction::TXPARAM ||
+			_instr == evmasm::Instruction::FRAMEDATALOAD ||
+			_instr == evmasm::Instruction::FRAMEDATACOPY ||
+			_instr == evmasm::Instruction::FRAMEPARAM ||
+			_instr == evmasm::Instruction::SIGPARAM ||
+			_instr == evmasm::Instruction::SIGDATACOPY
+		) && !m_evmVersion.hasFrameTransaction()
+	)
+		errorForVM(3141_error, "only available for EIP-8141-compatible");
+	else if (
+		(
+			_instr == evmasm::Instruction::RECENTROOTREFLOAD ||
+			_instr == evmasm::Instruction::TXTRACE ||
+			_instr == evmasm::Instruction::TXDIFF ||
+			_instr == evmasm::Instruction::EVENTDATACOPY
+		) && !m_evmVersion.hasHegotaPFI()
+	)
+		errorForVM(8272_error, "only available for Hegota PFI-compatible");
 	else if (_instr == evmasm::Instruction::PC)
 		m_errorReporter.error(
 			2450_error,

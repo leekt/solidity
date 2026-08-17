@@ -31,6 +31,32 @@ using namespace solidity::util;
 using namespace solidity::smtutil;
 using namespace solidity::frontend::smt;
 
+namespace
+{
+
+class StateDependentECRecoverDetector: public frontend::ASTConstVisitor
+{
+public:
+	bool visit(frontend::FunctionCall const& _functionCall) override
+	{
+		auto const* functionType = dynamic_cast<frontend::FunctionType const*>(_functionCall.expression().annotation().type);
+		if (
+			functionType &&
+			functionType->kind() == frontend::FunctionType::Kind::ECRecover &&
+			functionType->stateMutability() == frontend::StateMutability::View
+		)
+			m_found = true;
+		return !m_found;
+	}
+
+	bool found() const { return m_found; }
+
+private:
+	bool m_found = false;
+};
+
+}
+
 BlockchainVariable::BlockchainVariable(
 	std::string _name,
 	std::map<std::string, smtutil::SortPointer> _members,
@@ -72,7 +98,8 @@ void SymbolicState::reset()
 	m_error.resetIndex();
 	m_thisAddress.resetIndex();
 	m_tx.reset();
-	m_crypto.reset();
+	if (m_crypto)
+		m_crypto->reset();
 	if (m_abi)
 		m_abi->reset();
 	/// We don't reset nor clear these pointers on purpose,
@@ -84,6 +111,24 @@ void SymbolicState::reset()
 smtutil::Expression SymbolicState::balances() const
 {
 	return m_state->member("balances");
+}
+
+smtutil::Expression SymbolicState::worldStateEpoch() const
+{
+	solAssert(m_hasWorldStateEpoch, "");
+	return m_state->member("worldStateEpoch");
+}
+
+void SymbolicState::newWorldStateEpoch()
+{
+	if (!m_hasWorldStateEpoch)
+		return;
+	SymbolicVariable epoch(
+		SortProvider::uintSort,
+		"fresh_world_state_epoch_" + std::to_string(m_context.newUniqueId()),
+		m_context
+	);
+	m_state->assignMember("worldStateEpoch", epoch.currentValue());
 }
 
 smtutil::Expression SymbolicState::balance() const
@@ -112,6 +157,7 @@ void SymbolicState::newBalances()
 	auto balanceSort = tupleSort->components.at(tupleSort->memberToIndex.at("balances"));
 	SymbolicVariable newBalances(balanceSort, "fresh_balances_" + std::to_string(m_context.newUniqueId()), m_context);
 	m_state->assignMember("balances", newBalances.currentValue());
+	newWorldStateEpoch();
 }
 
 void SymbolicState::transfer(smtutil::Expression _from, smtutil::Expression _to, smtutil::Expression _value)
@@ -156,6 +202,7 @@ void SymbolicState::setAddressActive(
 		std::move(_address),
 		smtutil::Expression(_active))
 	);
+	newWorldStateEpoch();
 }
 
 void SymbolicState::newStorage()
@@ -166,6 +213,7 @@ void SymbolicState::newStorage()
 		m_context
 	);
 	m_state->assignMember("storage", newStorageVar.currentValue());
+	newWorldStateEpoch();
 }
 
 void SymbolicState::writeStateVars(ContractDefinition const& _contract, smtutil::Expression _address)
@@ -209,6 +257,7 @@ void SymbolicState::addBalance(smtutil::Expression _address, smtutil::Expression
 		balance(_address) + std::move(_value)
 	);
 	m_state->assignMember("balances", newBalances);
+	newWorldStateEpoch();
 }
 
 smtutil::Expression SymbolicState::txMember(std::string const& _member) const
@@ -277,15 +326,18 @@ void SymbolicState::prepareForSourceUnit(SourceUnit const& _source, bool _storag
 	std::set<FunctionCall const*, ASTCompareByID<FunctionCall>> abiCalls;
 	std::set<FunctionCall const*, ASTCompareByID<FunctionCall>> bytesConcatCalls;
 	std::set<ContractDefinition const*, ASTCompareByID<ContractDefinition>> contracts;
+	StateDependentECRecoverDetector stateDependentECRecoverDetector;
 	for (auto const& source: allSources)
 	{
 		abiCalls += SMTEncoder::collectABICalls(source);
 		bytesConcatCalls += SMTEncoder::collectBytesConcatCalls(source);
+		source->accept(stateDependentECRecoverDetector);
 		for (auto node: source->nodes())
 			if (auto contract = dynamic_cast<ContractDefinition const*>(node.get()))
 				contracts.insert(contract);
 	}
-	buildState(contracts, _storage);
+	buildState(contracts, _storage, stateDependentECRecoverDetector.found());
+	buildCryptoFunctions(stateDependentECRecoverDetector.found());
 	buildABIFunctions(abiCalls);
 	buildBytesConcatFunctions(bytesConcatCalls);
 }
@@ -307,11 +359,18 @@ std::string SymbolicState::stateVarStorageKey(VariableDeclaration const& _var, C
 	return _var.name() + "_" + std::to_string(_var.id()) + contractSuffix(_contract);
 }
 
-void SymbolicState::buildState(std::set<ContractDefinition const*, ASTCompareByID<ContractDefinition>> const& _contracts, bool _allStorages)
+void SymbolicState::buildState(
+	std::set<ContractDefinition const*, ASTCompareByID<ContractDefinition>> const& _contracts,
+	bool _allStorages,
+	bool _hasWorldStateEpoch
+)
 {
+	m_hasWorldStateEpoch = _hasWorldStateEpoch;
 	std::map<std::string, SortPointer> stateMembers{
 		{"balances", std::make_shared<smtutil::ArraySort>(smtutil::SortProvider::uintSort, smtutil::SortProvider::uintSort)}
 	};
+	if (m_hasWorldStateEpoch)
+		stateMembers.emplace("worldStateEpoch", SortProvider::uintSort);
 
 	if (_allStorages)
 	{
@@ -361,6 +420,49 @@ void SymbolicState::buildState(std::set<ContractDefinition const*, ASTCompareByI
 	m_state = std::make_unique<BlockchainVariable>(
 		"state",
 		std::move(stateMembers),
+		m_context
+	);
+}
+
+void SymbolicState::buildCryptoFunctions(bool _stateDependentECRecover)
+{
+	std::vector<std::string> ecRecoverInputNames{"hash", "v", "r", "s"};
+	std::vector<SortPointer> ecRecoverInputSorts{
+		smt::smtSort(*TypeProvider::fixedBytes(32)),
+		smt::smtSort(*TypeProvider::uint(8)),
+		smt::smtSort(*TypeProvider::fixedBytes(32)),
+		smt::smtSort(*TypeProvider::fixedBytes(32))
+	};
+	if (_stateDependentECRecover)
+	{
+		ecRecoverInputNames.emplace_back("worldStateEpoch");
+		ecRecoverInputSorts.emplace_back(SortProvider::uintSort);
+	}
+
+	m_crypto = std::make_unique<BlockchainVariable>(
+		"crypto",
+		std::map<std::string, SortPointer>{
+			{"keccak256", std::make_shared<smtutil::ArraySort>(
+				smt::smtSort(*TypeProvider::bytesStorage()),
+				smtSort(*TypeProvider::fixedBytes(32))
+			)},
+			{"sha256", std::make_shared<smtutil::ArraySort>(
+				smt::smtSort(*TypeProvider::bytesStorage()),
+				smtSort(*TypeProvider::fixedBytes(32))
+			)},
+			{"ripemd160", std::make_shared<smtutil::ArraySort>(
+				smt::smtSort(*TypeProvider::bytesStorage()),
+				smtSort(*TypeProvider::fixedBytes(20))
+			)},
+			{"ecrecover", std::make_shared<smtutil::ArraySort>(
+				std::make_shared<smtutil::TupleSort>(
+					"ecrecover_input_type",
+					std::move(ecRecoverInputNames),
+					std::move(ecRecoverInputSorts)
+				),
+				smtSort(*TypeProvider::address())
+			)}
+		},
 		m_context
 	);
 }

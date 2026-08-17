@@ -170,6 +170,20 @@ std::map<std::string, Instruction, std::less<>> const solidity::evmasm::c_instru
 	{ "LOG2", Instruction::LOG2 },
 	{ "LOG3", Instruction::LOG3 },
 	{ "LOG4", Instruction::LOG4 },
+	// EIP-8141 calls opcode 0xaa APPROVE, but the bare name is far too common in
+	// Solidity (ERC-20) to reserve as a Yul builtin, so it is spelled APPROVETX
+	// here. Only the mnemonic differs; the opcode byte is unchanged.
+	{ "APPROVETX", Instruction::APPROVE },
+	{ "TXPARAM", Instruction::TXPARAM },
+	{ "FRAMEDATALOAD", Instruction::FRAMEDATALOAD },
+	{ "FRAMEDATACOPY", Instruction::FRAMEDATACOPY },
+	{ "FRAMEPARAM", Instruction::FRAMEPARAM },
+	{ "SIGPARAM", Instruction::SIGPARAM },
+	{ "SIGDATACOPY", Instruction::SIGDATACOPY },
+	{ "RECENTROOTREFLOAD", Instruction::RECENTROOTREFLOAD },
+	{ "TXTRACE", Instruction::TXTRACE },
+	{ "TXDIFF", Instruction::TXDIFF },
+	{ "EVENTDATACOPY", Instruction::EVENTDATACOPY },
 	{ "CREATE", Instruction::CREATE },
 	{ "CALL", Instruction::CALL },
 	{ "CALLCODE", Instruction::CALLCODE },
@@ -177,6 +191,8 @@ std::map<std::string, Instruction, std::less<>> const solidity::evmasm::c_instru
 	{ "RETURN", Instruction::RETURN },
 	{ "DELEGATECALL", Instruction::DELEGATECALL },
 	{ "CREATE2", Instruction::CREATE2 },
+	{ "SETDELEGATE", Instruction::SETDELEGATE },
+	{ "SETSELFDELEGATE", Instruction::SETSELFDELEGATE },
 	{ "REVERT", Instruction::REVERT },
 	{ "INVALID", Instruction::INVALID },
 	{ "SELFDESTRUCT", Instruction::SELFDESTRUCT }
@@ -326,6 +342,22 @@ static std::map<Instruction, InstructionInfo> const c_instructionInfo =
 	{Instruction::LOG2,           {"LOG2",            0,  4,   0,  true,       Tier::Special}},
 	{Instruction::LOG3,           {"LOG3",            0,  5,   0,  true,       Tier::Special}},
 	{Instruction::LOG4,           {"LOG4",            0,  6,   0,  true,       Tier::Special}},
+	// EIP-8141 frame transaction instructions. APPROVETX (the EIP's APPROVE,
+	// renamed to keep the ERC-20 name free) charges only memory expansion for
+	// its return-data region, exactly like RETURN, hence Tier::Zero.
+	{Instruction::APPROVE,        {"APPROVETX",       0,  3,   0,  true,       Tier::Zero}},
+	{Instruction::TXPARAM,        {"TXPARAM",         0,  1,   1,  false,      Tier::Base}},
+	{Instruction::FRAMEDATALOAD,  {"FRAMEDATALOAD",   0,  2,   1,  false,      Tier::VeryLow}},
+	{Instruction::FRAMEDATACOPY,  {"FRAMEDATACOPY",   0,  4,   0,  true,       Tier::VeryLow}},
+	{Instruction::FRAMEPARAM,     {"FRAMEPARAM",      0,  2,   1,  false,      Tier::Base}},
+	{Instruction::SIGPARAM,       {"SIGPARAM",        0,  2,   1,  false,      Tier::Base}},
+	{Instruction::SIGDATACOPY,    {"SIGDATACOPY",     0,  4,   0,  true,       Tier::VeryLow}},
+	// These transaction-context reads can exceptional-halt on invalid inputs,
+	// so they must not be treated as removable even when their result is unused.
+	{Instruction::RECENTROOTREFLOAD, {"RECENTROOTREFLOAD", 0, 2, 1, true,      Tier::VeryLow}},
+	{Instruction::TXTRACE,        {"TXTRACE",         0,  2,   1,  true,       Tier::Special}},
+	{Instruction::TXDIFF,         {"TXDIFF",          0,  3,   1,  true,       Tier::Special}},
+	{Instruction::EVENTDATACOPY,  {"EVENTDATACOPY",   0,  4,   0,  true,       Tier::VeryLow}},
 	{Instruction::CREATE,         {"CREATE",          0,  3,   1,  true,       Tier::Special}},
 	{Instruction::CALL,           {"CALL",            0,  7,   1,  true,       Tier::Special}},
 	{Instruction::CALLCODE,       {"CALLCODE",        0,  7,   1,  true,       Tier::Special}},
@@ -333,6 +365,8 @@ static std::map<Instruction, InstructionInfo> const c_instructionInfo =
 	{Instruction::DELEGATECALL,   {"DELEGATECALL",    0,  6,   1,  true,       Tier::Special}},
 	{Instruction::STATICCALL,     {"STATICCALL",      0,  6,   1,  true,       Tier::Special}},
 	{Instruction::CREATE2,        {"CREATE2",         0,  4,   1,  true,       Tier::Special}},
+	{Instruction::SETDELEGATE,    {"SETDELEGATE",     0,  2,   1,  true,       Tier::Special}},
+	{Instruction::SETSELFDELEGATE, {"SETSELFDELEGATE", 0,  1,   1,  true,       Tier::Special}},
 	{Instruction::REVERT,         {"REVERT",          0,  2,   0,  true,       Tier::Zero}},
 	{Instruction::INVALID,        {"INVALID",         0,  0,   0,  true,       Tier::Zero}},
 	{Instruction::SELFDESTRUCT,   {"SELFDESTRUCT",    0,  1,   0,  true,       Tier::Special}}

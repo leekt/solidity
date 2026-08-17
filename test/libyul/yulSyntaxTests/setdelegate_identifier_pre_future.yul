@@ -1,0 +1,6 @@
+{
+    function setdelegate() {}
+}
+// ====
+// EVMVersion: <@future
+// ----

@@ -107,9 +107,15 @@ GasMeter::GasConsumption GasMeter::estimateMax(AssemblyItem const& _item, bool _
 		case Instruction::CALLDATACOPY:
 		case Instruction::CODECOPY:
 		case Instruction::RETURNDATACOPY:
+		case Instruction::SIGDATACOPY:
 			gas = runGas(_item.instruction(), m_evmVersion);
 			gas += memoryGas(0, -2);
 			gas += wordGas(GasCosts::copyGas, m_state->relativeStackElement(-2));
+			break;
+		case Instruction::EVENTDATACOPY:
+			gas = runGas(_item.instruction(), m_evmVersion);
+			gas += memoryGas(-1, -3);
+			gas += wordGas(GasCosts::copyGas, m_state->relativeStackElement(-3));
 			break;
 		case Instruction::MCOPY:
 		{
@@ -177,6 +183,12 @@ GasMeter::GasConsumption GasMeter::estimateMax(AssemblyItem const& _item, bool _
 			gas = GasCosts::selfdestructGas(m_evmVersion);
 			gas += GasCosts::callNewAccountGas; // We very rarely know whether the address exists.
 			break;
+		case Instruction::SETDELEGATE:
+			gas = GasCosts::setDelegateGas;
+			break;
+		case Instruction::SETSELFDELEGATE:
+			gas = GasCosts::setSelfDelegateGas;
+			break;
 		case Instruction::CREATE:
 		case Instruction::CREATE2:
 			if (_includeExternalCosts)
@@ -210,6 +222,11 @@ GasMeter::GasConsumption GasMeter::estimateMax(AssemblyItem const& _item, bool _
 			break;
 		case Instruction::SELFBALANCE:
 			gas = runGas(Instruction::SELFBALANCE, m_evmVersion);
+			break;
+		case Instruction::TXTRACE:
+		case Instruction::TXDIFF:
+			// Their provisional gas depends on the selected trace/diff operation.
+			gas = GasConsumption::infinite();
 			break;
 		default:
 			gas = runGas(_item.instruction(), m_evmVersion);

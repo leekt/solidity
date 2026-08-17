@@ -203,6 +203,7 @@ BuiltinFunctionForEVM setimmutableBuiltin()
 			false,               // canBeRemovedIfNotMSize
 			true,                // cannotLoop
 			SideEffects::None,   // otherState
+			SideEffects::None,   // worldState
 			SideEffects::None,   // storage
 			SideEffects::Write,  // memory
 			SideEffects::None    // transientStorage
@@ -320,6 +321,7 @@ SideEffects EVMBuiltins::sideEffectsOfInstruction(evmasm::Instruction _instructi
 		evmasm::SemanticInformation::canBeRemovedIfNoMSize(_instruction),
 		true, // cannotLoop
 		translate(evmasm::SemanticInformation::otherState(_instruction)),
+		translate(evmasm::SemanticInformation::worldState(_instruction)),
 		translate(evmasm::SemanticInformation::storage(_instruction)),
 		translate(evmasm::SemanticInformation::memory(_instruction)),
 		translate(evmasm::SemanticInformation::transientStorage(_instruction)),

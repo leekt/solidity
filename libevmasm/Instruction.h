@@ -185,12 +185,29 @@ enum class Instruction: uint8_t
 	LOG3,                     ///< Makes a log entry; 3 topics.
 	LOG4,                     ///< Makes a log entry; 4 topics.
 
+	APPROVE = 0xaa,           ///< approve gas payment and/or execution, and exit the frame (EIP-8141)
+
+	TXPARAM = 0xb0,           ///< get a transaction-scoped parameter of a frame transaction (EIP-8141)
+	FRAMEDATALOAD,            ///< get a word of a frame's input data (EIP-8141)
+	FRAMEDATACOPY,            ///< copy a frame's input data to memory (EIP-8141)
+	FRAMEPARAM,               ///< get a frame-scoped parameter of a frame transaction (EIP-8141)
+	SIGPARAM,                 ///< get signature-scoped metadata of a frame transaction (EIP-8141)
+	SIGDATACOPY = 0xb5,       ///< copy arbitrary signature data to memory (EIP-8141)
+	RECENTROOTREFLOAD = 0xb6, ///< get a field from a recent-root reference (provisional Hegota PFI)
+	TXTRACE = 0xb7,           ///< inspect the current transaction trace (provisional Hegota PFI)
+	TXDIFF = 0xb8,            ///< inspect the current transaction state diff (provisional Hegota PFI)
+	EVENTDATACOPY = 0xb9,     ///< copy transaction event data to memory (provisional Hegota PFI)
+
 	CREATE = 0xf0,            ///< create a new account with associated code
 	CALL,                     ///< message-call into an account
 	CALLCODE,                 ///< message-call with another account's code only
 	RETURN,                   ///< halt execution returning output data
 	DELEGATECALL,             ///< like CALLCODE but keeps caller's value and sender
 	CREATE2 = 0xf5,           ///< create new account with associated code at address `sha3(0xff + sender + salt + init code) % 2**160`
+	SETDELEGATE = 0xf6,       ///< set EIP-7702 delegation code at an address derived from this address and a salt (EIP-7819)
+	// NON-NORMATIVE: EIP-7851 leaves this opcode TBD. The toolkit provisionally
+	// assigns 0xf7 because 0xf6 is already allocated to EIP-7819 SETDELEGATE.
+	SETSELFDELEGATE = 0xf7,   ///< update this EIP-7702 authority's delegation and disable ECDSA (EIP-7851)
 	STATICCALL = 0xfa,        ///< like CALL but disallow state modifications
 
 	REVERT = 0xfd,            ///< halt execution, revert state and return output data

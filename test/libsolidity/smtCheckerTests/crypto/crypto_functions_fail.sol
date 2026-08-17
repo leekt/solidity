@@ -24,6 +24,7 @@ contract C {
 	}
 }
 // ====
+// EVMVersion: <@future
 // SMTEngine: all
 // SMTIgnoreCex: yes
 // ----

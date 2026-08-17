@@ -62,6 +62,23 @@ bool EVMVersion::hasOpcode(Instruction _opcode) const
 	case Instruction::TSTORE:
 	case Instruction::TLOAD:
 		return supportsTransientStorage();
+	case Instruction::APPROVE:
+	case Instruction::TXPARAM:
+	case Instruction::FRAMEDATALOAD:
+	case Instruction::FRAMEDATACOPY:
+	case Instruction::FRAMEPARAM:
+	case Instruction::SIGPARAM:
+	case Instruction::SIGDATACOPY:
+		return hasFrameTransaction();
+	case Instruction::RECENTROOTREFLOAD:
+	case Instruction::TXTRACE:
+	case Instruction::TXDIFF:
+	case Instruction::EVENTDATACOPY:
+		return hasHegotaPFI();
+	case Instruction::SETDELEGATE:
+		return hasSetDelegate();
+	case Instruction::SETSELFDELEGATE:
+		return hasSetSelfDelegate();
 	default:
 		return true;
 	}

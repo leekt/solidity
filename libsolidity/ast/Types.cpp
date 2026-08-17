@@ -3697,7 +3697,7 @@ bool FunctionType::isPure() const
 	//       the callgraph analyzer is in place
 	return
 		m_kind == Kind::KECCAK256 ||
-		m_kind == Kind::ECRecover ||
+		(m_kind == Kind::ECRecover && m_stateMutability == StateMutability::Pure) ||
 		m_kind == Kind::SHA256 ||
 		m_kind == Kind::RIPEMD160 ||
 		m_kind == Kind::AddMod ||

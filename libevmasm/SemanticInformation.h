@@ -115,6 +115,8 @@ struct SemanticInformation
 	static Effect storage(Instruction _instruction);
 	static Effect transientStorage(Instruction _instruction);
 	static Effect otherState(Instruction _instruction);
+	/// @returns whether the instruction can change persistent world state or account code.
+	static Effect worldState(Instruction _instruction);
 	static bool invalidInPureFunctions(Instruction _instruction);
 	static bool invalidInViewFunctions(Instruction _instruction);
 };

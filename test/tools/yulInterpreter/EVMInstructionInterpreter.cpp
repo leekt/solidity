@@ -259,6 +259,34 @@ u256 EVMInstructionInterpreter::eval(
 		return m_state.blobbasefee;
 	case Instruction::SLOTNUM:
 		return m_state.slotnum;
+	// EIP-8141 frame transaction introspection. The interpreter models a plain
+	// call, not a frame transaction, so there is no frame or signature list to
+	// report on: these yield zero rather than inventing state. The copy opcodes
+	// copy from empty data, which zero-fills the destination.
+	case Instruction::TXPARAM:
+	case Instruction::FRAMEPARAM:
+	case Instruction::SIGPARAM:
+	case Instruction::FRAMEDATALOAD:
+		logTrace(_instruction, arg);
+		return 0;
+	case Instruction::FRAMEDATACOPY:
+	case Instruction::SIGDATACOPY:
+		if (accessMemory(arg[0], arg[2]))
+			copyZeroExtended(m_state.memory, {}, size_t(arg[0]), size_t(arg[1]), size_t(arg[2]));
+		logTrace(_instruction, arg);
+		return 0;
+	// The interpreter does not model the provisional Hegota PFI transaction
+	// context, so scalar reads return zero and event data is empty.
+	case Instruction::RECENTROOTREFLOAD:
+	case Instruction::TXTRACE:
+	case Instruction::TXDIFF:
+		logTrace(_instruction, arg);
+		return 0;
+	case Instruction::EVENTDATACOPY:
+		if (accessMemory(arg[1], arg[3]))
+			copyZeroExtended(m_state.memory, {}, size_t(arg[1]), size_t(arg[2]), size_t(arg[3]));
+		logTrace(_instruction, arg);
+		return 0;
 	case Instruction::EXTCODESIZE:
 		return u256(keccak256(h256(arg[0]))) & 0xffffff;
 	case Instruction::EXTCODEHASH:
@@ -371,6 +399,21 @@ u256 EVMInstructionInterpreter::eval(
 			return (0xdddddd + arg[1]) & u256("0xffffffffffffffffffffffffffffffffffffffff");
 		else
 			return 0xdddddd;
+	// The interpreter does not model accounts, but it can return the exact
+	// deterministic EIP-7819 location produced by SETDELEGATE.
+	case Instruction::SETDELEGATE:
+	{
+		bytes preimage{0xef, 0x01, 0x00};
+		preimage += m_state.address.asBytes();
+		preimage += h256(arg[0]).asBytes();
+		logTrace(_instruction, arg);
+		return u256(keccak256(preimage)) & u256("0xffffffffffffffffffffffffffffffffffffffff");
+	}
+	// The interpreter has no raw account-code model. Treat its authority as
+	// ineligible, so EIP-7851 deterministically takes the no-state-change path.
+	case Instruction::SETSELFDELEGATE:
+		logTrace(_instruction, arg);
+		return 0;
 	case Instruction::CALL:
 	case Instruction::CALLCODE:
 		accessMemory(arg[3], arg[4]);
@@ -394,6 +437,17 @@ u256 EVMInstructionInterpreter::eval(
 			(arg[1] == util::h160::Arith(m_state.address) || (arg[1] & 1))
 		) ? 1 : 0;
 	case Instruction::RETURN:
+	{
+		m_state.returndata = {};
+		if (accessMemory(arg[0], arg[1]))
+			m_state.returndata = m_state.readMemory(arg[0], arg[1]);
+		logTrace(_instruction, arg, m_state.returndata);
+		BOOST_THROW_EXCEPTION(ExplicitlyTerminatedWithReturn());
+	}
+	// EIP-8141 APPROVE exits the frame successfully with a return-data region,
+	// like RETURN. The transaction-scoped approval context it would also update
+	// is outside what this interpreter models.
+	case Instruction::APPROVE:
 	{
 		m_state.returndata = {};
 		if (accessMemory(arg[0], arg[1]))
@@ -672,15 +726,15 @@ std::pair<bool, size_t> EVMInstructionInterpreter::isInputMemoryPtrModified(
 			return {false, 0};
 	}
 	else if (
-		_pseudoInstruction == "RETURNDATACOPY" || _pseudoInstruction == "CALLDATACOPY"
-		|| _pseudoInstruction == "CODECOPY")
+		_pseudoInstruction == "RETURNDATACOPY" || _pseudoInstruction == "CALLDATACOPY" ||
+		_pseudoInstruction == "CODECOPY" || _pseudoInstruction == "SIGDATACOPY")
 	{
 		if (_arguments[2] == 0)
 			return {true, 0};
 		else
 			return {false, 0};
 	}
-	else if (_pseudoInstruction == "EXTCODECOPY")
+	else if (_pseudoInstruction == "EXTCODECOPY" || _pseudoInstruction == "EVENTDATACOPY")
 	{
 		if (_arguments[3] == 0)
 			return {true, 1};
