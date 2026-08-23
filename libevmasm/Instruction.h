@@ -185,7 +185,7 @@ enum class Instruction: uint8_t
 	LOG3,                     ///< Makes a log entry; 3 topics.
 	LOG4,                     ///< Makes a log entry; 4 topics.
 
-	APPROVE = 0xaa,           ///< approve gas payment and/or execution, and exit the frame (EIP-8141)
+	APPROVE = 0xaa,           ///< approve gas payment and/or execution, and exit the current EVM call frame (EIP-8141)
 
 	TXPARAM = 0xb0,           ///< get a transaction-scoped parameter of a frame transaction (EIP-8141)
 	FRAMEDATALOAD,            ///< get a word of a frame's input data (EIP-8141)
