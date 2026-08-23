@@ -79,7 +79,7 @@ std::vector<SemanticInformation::Operation> SemanticInformation::readWriteOperat
 	}
 	case Instruction::REVERT:
 	case Instruction::RETURN:
-	// APPROVE returns a memory region as the frame's return data, like RETURN.
+	// APPROVE returns a memory region as the current call frame's return data, like RETURN.
 	case Instruction::APPROVE:
 	case Instruction::KECCAK256:
 	case Instruction::LOG0:
@@ -321,7 +321,7 @@ bool SemanticInformation::terminatesControlFlow(Instruction _instruction)
 	case Instruction::STOP:
 	case Instruction::INVALID:
 	case Instruction::REVERT:
-	// APPROVE terminates the frame successfully, so code after it is unreachable.
+	// APPROVE terminates the current call frame successfully, so code after it is unreachable.
 	case Instruction::APPROVE:
 		return true;
 	default:

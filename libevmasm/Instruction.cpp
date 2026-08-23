@@ -346,14 +346,14 @@ static std::map<Instruction, InstructionInfo> const c_instructionInfo =
 	// renamed to keep the ERC-20 name free) charges only memory expansion for
 	// its return-data region, exactly like RETURN, hence Tier::Zero.
 	{Instruction::APPROVE,        {"APPROVETX",       0,  3,   0,  true,       Tier::Zero}},
-	{Instruction::TXPARAM,        {"TXPARAM",         0,  1,   1,  false,      Tier::Base}},
-	{Instruction::FRAMEDATALOAD,  {"FRAMEDATALOAD",   0,  2,   1,  false,      Tier::VeryLow}},
-	{Instruction::FRAMEDATACOPY,  {"FRAMEDATACOPY",   0,  4,   0,  true,       Tier::VeryLow}},
-	{Instruction::FRAMEPARAM,     {"FRAMEPARAM",      0,  2,   1,  false,      Tier::Base}},
-	{Instruction::SIGPARAM,       {"SIGPARAM",        0,  2,   1,  false,      Tier::Base}},
-	{Instruction::SIGDATACOPY,    {"SIGDATACOPY",     0,  4,   0,  true,       Tier::VeryLow}},
 	// These transaction-context reads can exceptional-halt on invalid inputs,
 	// so they must not be treated as removable even when their result is unused.
+	{Instruction::TXPARAM,        {"TXPARAM",         0,  1,   1,  true,       Tier::Base}},
+	{Instruction::FRAMEDATALOAD,  {"FRAMEDATALOAD",   0,  2,   1,  true,       Tier::VeryLow}},
+	{Instruction::FRAMEDATACOPY,  {"FRAMEDATACOPY",   0,  4,   0,  true,       Tier::VeryLow}},
+	{Instruction::FRAMEPARAM,     {"FRAMEPARAM",      0,  2,   1,  true,       Tier::Base}},
+	{Instruction::SIGPARAM,       {"SIGPARAM",        0,  2,   1,  true,       Tier::Base}},
+	{Instruction::SIGDATACOPY,    {"SIGDATACOPY",     0,  4,   0,  true,       Tier::VeryLow}},
 	{Instruction::RECENTROOTREFLOAD, {"RECENTROOTREFLOAD", 0, 2, 1, true,      Tier::VeryLow}},
 	{Instruction::TXTRACE,        {"TXTRACE",         0,  2,   1,  true,       Tier::Special}},
 	{Instruction::TXDIFF,         {"TXDIFF",          0,  3,   1,  true,       Tier::Special}},

@@ -121,7 +121,7 @@ class CircleCI:
             json_response = query_api(url, params, headers, self.debug_requests)
 
             yield json_response['items']
-            next_page_token = json_response['next_page_token']
+            next_page_token = json_response.get('next_page_token')
             page_count += 1
             if next_page_token is None:
                 break

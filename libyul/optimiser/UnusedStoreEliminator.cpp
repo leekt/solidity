@@ -164,6 +164,7 @@ void UnusedStoreEliminator::visit(Statement const& _statement)
 		*instruction == Instruction::CODECOPY ||
 		*instruction == Instruction::CALLDATACOPY ||
 		*instruction == Instruction::RETURNDATACOPY ||
+		*instruction == Instruction::FRAMEDATACOPY ||
 		*instruction == Instruction::SIGDATACOPY ||
 		*instruction == Instruction::EVENTDATACOPY ||
 		// TODO: Removing MCOPY is complicated because it's not just a store but also a load.
@@ -180,7 +181,11 @@ void UnusedStoreEliminator::visit(Statement const& _statement)
 	if (isCandidateForRemoval)
 	{
 		// Even an unused copy must preserve exceptional source validation.
-		if (*instruction == Instruction::SIGDATACOPY || *instruction == Instruction::EVENTDATACOPY)
+		if (
+			*instruction == Instruction::FRAMEDATACOPY ||
+			*instruction == Instruction::SIGDATACOPY ||
+			*instruction == Instruction::EVENTDATACOPY
+		)
 			return;
 		if (*instruction == Instruction::RETURNDATACOPY)
 		{

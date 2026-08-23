@@ -81,6 +81,7 @@ GasMeter::GasConsumption GasMeter::estimateMax(AssemblyItem const& _item, bool _
 			break;
 		case Instruction::RETURN:
 		case Instruction::REVERT:
+		case Instruction::APPROVE:
 			gas = runGas(_item.instruction(), m_evmVersion);
 			gas += memoryGas(0, -1);
 			break;
@@ -107,6 +108,7 @@ GasMeter::GasConsumption GasMeter::estimateMax(AssemblyItem const& _item, bool _
 		case Instruction::CALLDATACOPY:
 		case Instruction::CODECOPY:
 		case Instruction::RETURNDATACOPY:
+		case Instruction::FRAMEDATACOPY:
 		case Instruction::SIGDATACOPY:
 			gas = runGas(_item.instruction(), m_evmVersion);
 			gas += memoryGas(0, -2);

@@ -1,6 +1,7 @@
 ### 0.8.37 (unreleased)
 
 Language Features:
+* ABIEncoder: Remove support for the experimental pragma `ABIEncoderV2`. This has been superseded by non-experimental pragma `abicoder`.
 * Custom Storage Layout: Allow signed positive expressions.
 * EVM: Support `block.slotnum` to access the beacon chain slot number of the current block, available since the Amsterdam EVM version ([EIP-7843](https://eips.ethereum.org/EIPS/eip-7843)).
 * Yul: Introduce builtin `slotnum()` for the `SLOTNUM` opcode, available since the Amsterdam EVM version ([EIP-7843](https://eips.ethereum.org/EIPS/eip-7843)).
@@ -19,10 +20,13 @@ Compiler Features:
 * General: Remove support for the experimental Generic Solidity prototype (`pragma experimental solidity`).
 * SMTChecker: Emit a deprecation warning for the BMC engine.
 * SMTChecker: Support `block.slotnum`.
+* Standard JSON Interface: Fix the entire output being replaced by a `JSONError` ("Error writing output JSON.") when an error message quotes a long source line and truncating it splits a multi-byte character.
 
 Bugfixes:
 * Code Generator: Fix ICE on parenthesized custom error construction in require statement.
+* Code Generator: Fix uninitialized internal function pointers being read from a packed storage slot with the wrong value when a subsequent variable in the slot holds a non-zero value.
 * Commandline Interface: Report proper error instead of ICE on non-hex mixed-case address value given via `--libraries`.
+* Type Checker: Report an unimplemented feature error instead of ICE when a variable of a fixed point type is accessed in inline assembly.
 
 Build System:
 * Update minimum version requirement of Boost to 1.83.0 for Windows build. This matches the minimum version for other systems.
